@@ -83,7 +83,7 @@ public class BoardScript : MonoBehaviour
                     {
                         foreach (var brick in horizontalMatch)
                         {
-                            if (!matches.Contains(brick) && brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
+                            if (brick != null && !matches.Contains(brick) && brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
                             {
                                 matches.Add(brick);
                                 processed[brick.BoardX, brick.BoardY] = true;
@@ -96,7 +96,7 @@ public class BoardScript : MonoBehaviour
                     {
                         foreach (var brick in verticalMatch)
                         {
-                            if (!matches.Contains(brick) && brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
+                            if (brick != null && !matches.Contains(brick) && brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
                             {
                                 matches.Add(brick);
                                 processed[brick.BoardX, brick.BoardY] = true;
@@ -176,29 +176,45 @@ public class BoardScript : MonoBehaviour
 
     bool HasCurrentMatches()
     {
-        List<BrickScript> currentMatches = FindAllMatches();
-        return currentMatches.Count > 0;
+        try
+        {
+            List<BrickScript> currentMatches = FindAllMatches();
+            return currentMatches.Count > 0;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Exception in HasCurrentMatches: {e.Message}");
+            return false; // If we can't check reliably, assume no matches
+        }
     }
 
     bool HasPossibleMoves()
     {
-        for (int y = 1; y <= H; y++)
+        try
         {
-            for (int x = 0; x < W; x++)
+            for (int y = 1; y <= H; y++)
             {
-                if (Board[x, y] != null)
+                for (int x = 0; x < W; x++)
                 {
-                    if (CanSwapCreateMatch(x, y, x + 1, y) ||
-                        CanSwapCreateMatch(x, y, x - 1, y) ||
-                        CanSwapCreateMatch(x, y, x, y + 1) ||
-                        CanSwapCreateMatch(x, y, x, y - 1))
+                    if (Board[x, y] != null)
                     {
-                        return true;
+                        if (CanSwapCreateMatch(x, y, x + 1, y) ||
+                            CanSwapCreateMatch(x, y, x - 1, y) ||
+                            CanSwapCreateMatch(x, y, x, y + 1) ||
+                            CanSwapCreateMatch(x, y, x, y - 1))
+                        {
+                            return true;
+                        }
                     }
                 }
             }
+            return false;
         }
-        return false;
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Exception in HasPossibleMoves: {e.Message}");
+            return true; // If we can't check reliably, assume moves exist to avoid infinite clearing
+        }
     }
 
     bool ShouldClearBoard()
@@ -207,30 +223,56 @@ public class BoardScript : MonoBehaviour
         return !HasCurrentMatches() && !HasPossibleMoves();
     }
 
+    void CleanupNullBricks()
+    {
+        // Clean up any null references in the board array
+        for (int y = 0; y <= H; y++)
+        {
+            for (int x = 0; x < W; x++)
+            {
+                if (Board[x, y] != null && Board[x, y] == null)
+                {
+                    Board[x, y] = null;
+                }
+            }
+        }
+    }
+
     bool CanSwapCreateMatch(int x1, int y1, int x2, int y2)
     {
-        if (x2 < 0 || x2 >= W || y2 < 1 || y2 > H) return false;
-        if (Board[x1, y1] == null || Board[x2, y2] == null) return false;
+        try
+        {
+            if (x2 < 0 || x2 >= W || y2 < 1 || y2 > H) return false;
+            if (Board[x1, y1] == null || Board[x2, y2] == null) return false;
 
-        BrickScript brick1 = Board[x1, y1];
-        BrickScript brick2 = Board[x2, y2];
+            BrickScript brick1 = Board[x1, y1];
+            BrickScript brick2 = Board[x2, y2];
 
-        Board[x1, y1] = brick2;
-        Board[x2, y2] = brick1;
+            // Additional null check after assignment
+            if (brick1 == null || brick2 == null) return false;
 
-        brick1.SetBoardPosition(x2, y2);
-        brick2.SetBoardPosition(x1, y1);
+            Board[x1, y1] = brick2;
+            Board[x2, y2] = brick1;
 
-        List<BrickScript> matches = FindAllMatches();
-        bool hasMatches = matches.Count > 0;
+            brick1.SetBoardPosition(x2, y2);
+            brick2.SetBoardPosition(x1, y1);
 
-        Board[x1, y1] = brick1;
-        Board[x2, y2] = brick2;
+            List<BrickScript> matches = FindAllMatches();
+            bool hasMatches = matches.Count > 0;
 
-        brick1.SetBoardPosition(x1, y1);
-        brick2.SetBoardPosition(x2, y2);
+            Board[x1, y1] = brick1;
+            Board[x2, y2] = brick2;
 
-        return hasMatches;
+            brick1.SetBoardPosition(x1, y1);
+            brick2.SetBoardPosition(x2, y2);
+
+            return hasMatches;
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Exception in CanSwapCreateMatch at ({x1},{y1}) and ({x2},{y2}): {e.Message}");
+            return false; // If we can't check reliably, assume no match possible
+        }
     }
 
     void ShowNotification(string message, float duration = 3f)
@@ -395,14 +437,24 @@ public class BoardScript : MonoBehaviour
         int originalBrick2X = brick2.BoardX;
         int originalBrick2Y = brick2.BoardY;
 
-        Board[brick1.BoardX, brick1.BoardY] = brick2;
-        Board[brick2.BoardX, brick2.BoardY] = brick1;
+        if (brick1 != null && brick2 != null)
+        {
+            Board[originalBrick1X, originalBrick1Y] = brick2;
+            Board[originalBrick2X, originalBrick2Y] = brick1;
 
-        brick1.SetBoardPosition(brick2.BoardX, brick2.BoardY);
-        brick2.SetBoardPosition(originalBrick1X, originalBrick1Y);
+            brick1.SetBoardPosition(originalBrick2X, originalBrick2Y);
+            brick2.SetBoardPosition(originalBrick1X, originalBrick1Y);
+        }
 
-        brick1.MoveTo(pos2, movementDuration);
-        brick2.MoveTo(pos1, movementDuration);
+        // Check if bricks are still valid before moving them
+        if (brick1 != null)
+        {
+            brick1.MoveTo(pos2, movementDuration);
+        }
+        if (brick2 != null)
+        {
+            brick2.MoveTo(pos1, movementDuration);
+        }
 
         yield return new WaitForSeconds(movementDuration);
 
@@ -417,12 +469,25 @@ public class BoardScript : MonoBehaviour
             Board[originalBrick2X, originalBrick2Y] = brick2;
             Board[originalBrick1X, originalBrick1Y] = brick1;
 
-            brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
-            brick2.SetBoardPosition(originalBrick2X, originalBrick2Y);
+            if (brick1 != null)
+            {
+                brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
+            }
+            if (brick2 != null)
+            {
+                brick2.SetBoardPosition(originalBrick2X, originalBrick2Y);
+            }
 
             Debug.Log($"Starting revert animation - Brick1 to {pos1}, Brick2 to {pos2}");
-            brick1.MoveTo(pos1, movementDuration);
-            brick2.MoveTo(pos2, movementDuration);
+            // Check if bricks are still valid before reverting movement
+            if (brick1 != null)
+            {
+                brick1.MoveTo(pos1, movementDuration);
+            }
+            if (brick2 != null)
+            {
+                brick2.MoveTo(pos2, movementDuration);
+            }
 
             yield return new WaitForSeconds(movementDuration);
             Debug.Log($"Revert animation completed");
@@ -453,9 +518,15 @@ public class BoardScript : MonoBehaviour
 
             foreach (BrickScript match in matches)
             {
-                Board[match.BoardX, match.BoardY] = null;
-                Destroy(match.gameObject);
+                if (match != null && match.BoardX >= 0 && match.BoardX < W && match.BoardY >= 0 && match.BoardY <= H)
+                {
+                    Board[match.BoardX, match.BoardY] = null;
+                    Destroy(match.gameObject);
+                }
             }
+
+            // Clean up any remaining null references
+            CleanupNullBricks();
 
             yield return new WaitForSeconds(0.2f);
 
@@ -500,13 +571,23 @@ public class BoardScript : MonoBehaviour
                             if (Board[x, searchY] != null)
                             {
                                 BrickScript movingBrick = Board[x, searchY];
-                                Board[x, y] = movingBrick;
-                                Board[x, searchY] = null;
 
-                                movingBrick.SetBoardPosition(x, y);
-                                movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                                // Check if brick is still valid before moving it
+                                if (movingBrick != null)
+                                {
+                                    Board[x, y] = movingBrick;
+                                    Board[x, searchY] = null;
 
-                                anyMovement = true;
+                                    movingBrick.SetBoardPosition(x, y);
+                                    movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+
+                                    anyMovement = true;
+                                }
+                                else
+                                {
+                                    // Clear the null reference from the board
+                                    Board[x, searchY] = null;
+                                }
                                 break;
                             }
                         }
@@ -544,11 +625,21 @@ public class BoardScript : MonoBehaviour
                         if (Board[x, y] == null)
                         {
                             BrickScript movingBrick = Board[x, 0];
-                            Board[x, y] = movingBrick;
-                            Board[x, 0] = null;
 
-                            movingBrick.SetBoardPosition(x, y);
-                            movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                            // Check if the spawned brick is still valid
+                            if (movingBrick != null)
+                            {
+                                Board[x, y] = movingBrick;
+                                Board[x, 0] = null;
+
+                                movingBrick.SetBoardPosition(x, y);
+                                movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                            }
+                            else
+                            {
+                                // Clear the null reference
+                                Board[x, 0] = null;
+                            }
                             break;
                         }
                     }

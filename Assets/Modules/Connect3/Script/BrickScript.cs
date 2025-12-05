@@ -89,14 +89,34 @@ public class BrickScript : MonoBehaviour
 
     public void MoveTo(Vector3 worldPosition, float duration = 0.2f)
     {
+        // Check if this brick has been destroyed
+        if (this == null || gameObject == null)
+        {
+            return;
+        }
+
         // Stop any existing movement animation
         if (currentMovement != null)
         {
-            StopCoroutine(currentMovement);
-            Debug.Log($"Stopped existing movement for brick at ({BoardX},{BoardY})");
+            try
+            {
+                StopCoroutine(currentMovement);
+                Debug.Log($"Stopped existing movement for brick at ({BoardX},{BoardY})");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"Failed to stop coroutine on destroyed brick: {e.Message}");
+            }
         }
 
-        currentMovement = StartCoroutine(MoveToCo(worldPosition, duration));
+        try
+        {
+            currentMovement = StartCoroutine(MoveToCo(worldPosition, duration));
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"Failed to start movement coroutine on destroyed brick: {e.Message}");
+        }
     }
 
     private System.Collections.IEnumerator MoveToCo(Vector3 targetPosition, float duration)
