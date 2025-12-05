@@ -6,7 +6,6 @@ public class BoardScript : MonoBehaviour
 {
     private const int W = 8;
     private const int H = 8;
-
     private BrickScript[,] Board = new BrickScript[W, H + 1];
 
     [SerializeField] private float brickSize = 1f;
@@ -17,9 +16,62 @@ public class BoardScript : MonoBehaviour
 
     private BrickScript selectedBrick = null;
     private bool isPlayerTurn = true;
-    private bool isProcessingSwap = false;
-    private bool isProcessingMatches = false;
+    public bool isProcessingSwap = false;
+    public bool isProcessingMatches = false;
+    public bool isTestingMoves = false;
     private bool boardInitialized = false;
+
+    // Movement tracking
+    private int activeMovements = 0;
+    public bool HasActiveMovements => activeMovements > 0;
+
+    public void StartMovement()
+    {
+        activeMovements++;
+    }
+
+    public void EndMovement()
+    {
+        activeMovements--;
+        if (activeMovements < 0)
+        {
+            Debug.LogWarning("activeMovements went negative! Resetting to 0.");
+            activeMovements = 0;
+        }
+    }
+
+    public IEnumerator WaitForAllMovements()
+    {
+        if (HasActiveMovements)
+        {
+            Debug.Log($"WaitForAllMovements: Waiting for {activeMovements} active movements to complete...");
+        }
+
+        int frameCount = 0;
+        int maxFrames = 600; // 10 seconds at 60fps safety limit
+
+        while (HasActiveMovements && frameCount < maxFrames)
+        {
+            yield return null;
+            frameCount++;
+
+            if (frameCount % 60 == 0)
+            {
+                Debug.LogWarning($"WaitForAllMovements: Still waiting after {frameCount} frames. activeMovements={activeMovements}");
+            }
+        }
+
+        if (frameCount >= maxFrames)
+        {
+            Debug.LogError($"WaitForAllMovements: Timeout after {maxFrames} frames! Force resetting activeMovements from {activeMovements} to 0");
+            activeMovements = 0;
+        }
+
+        if (frameCount > 0 && frameCount < maxFrames)
+        {
+            Debug.Log($"WaitForAllMovements: All movements completed after {frameCount} frames");
+        }
+    }
 
     public Transform Upperleft;
 
@@ -32,6 +84,25 @@ public class BoardScript : MonoBehaviour
         StartCoroutine(SettleCo());
     }
 
+    void Update()
+    {
+        // Debug key to reset stuck flags
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            Debug.Log($"RESET FLAGS - Before: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={activeMovements}");
+            isProcessingSwap = false;
+            isProcessingMatches = false;
+            activeMovements = 0;
+            Debug.Log($"RESET FLAGS - After: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={activeMovements}");
+        }
+
+        // Debug key to show current state
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            Debug.Log($"STATE CHECK - isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={activeMovements}, hasActiveMovements={HasActiveMovements}");
+        }
+    }
+
     BrickScript SpawnBrick(int x)
     {
         if (Board[x, 0] != null)
@@ -39,18 +110,26 @@ public class BoardScript : MonoBehaviour
 
         GameObject prefab = BrickPrefabs.I?.GetRandomBrickPrefab();
         if (prefab == null)
+        {
+            Debug.LogWarning("SpawnBrick: No prefab available!");
             return null;
+        }
 
         GameObject newBrickObj = Instantiate(prefab, GetWorldPosition(x, 0), Quaternion.identity, parent: Upperleft.transform);
         BrickScript newBrick = newBrickObj.GetComponent<BrickScript>();
 
         if (newBrick != null)
         {
+            newBrick.BoardX = -1;
+            newBrick.BoardY = -1;
             newBrick.SetBoardPosition(x, 0);
 
             if (newBrick.Type == BrickType.Undefined)
             {
-                BrickType[] validTypes = { BrickType.Type1, BrickType.Type2, BrickType.Type3, BrickType.Type4, BrickType.Type5, BrickType.Type6, BrickType.Type7 };
+                BrickType[] validTypes = {
+                    BrickType.Type1, BrickType.Type2, BrickType.Type3, BrickType.Type4,
+                    BrickType.Type5, BrickType.Type6, BrickType.Type7
+                };
                 newBrick.Type = validTypes[Random.Range(0, validTypes.Length)];
             }
 
@@ -62,9 +141,8 @@ public class BoardScript : MonoBehaviour
 
     Vector3 GetWorldPosition(int x, int y)
     {
-        // Use negative Z to ensure bricks are in front of background, with slight depth variation
         float z = -0.1f - (y * 0.001f);
-        return new Vector3(x * brickSize + Upperleft.position.x , -y * brickSize + Upperleft.position.y, z);
+        return new Vector3(x * brickSize + Upperleft.position.x, -y * brickSize + Upperleft.position.y, z);
     }
 
     List<BrickScript> FindAllMatches()
@@ -76,14 +154,15 @@ public class BoardScript : MonoBehaviour
         {
             for (int x = 0; x < W; x++)
             {
-                if (Board[x, y] != null && !processed[x, y])
+                if (Board[x, y] != null && IsValidBrick(Board[x, y]) && !processed[x, y])
                 {
                     List<BrickScript> horizontalMatch = FindHorizontalMatch(x, y);
                     if (horizontalMatch.Count >= 3)
                     {
                         foreach (var brick in horizontalMatch)
                         {
-                            if (brick != null && !matches.Contains(brick) && brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
+                            if (brick != null && IsValidBrick(brick) && !matches.Contains(brick) &&
+                                brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
                             {
                                 matches.Add(brick);
                                 processed[brick.BoardX, brick.BoardY] = true;
@@ -96,7 +175,8 @@ public class BoardScript : MonoBehaviour
                     {
                         foreach (var brick in verticalMatch)
                         {
-                            if (brick != null && !matches.Contains(brick) && brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
+                            if (brick != null && IsValidBrick(brick) && !matches.Contains(brick) &&
+                                brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
                             {
                                 matches.Add(brick);
                                 processed[brick.BoardX, brick.BoardY] = true;
@@ -115,10 +195,13 @@ public class BoardScript : MonoBehaviour
         List<BrickScript> match = new List<BrickScript>();
         BrickScript startBrick = Board[startX, startY];
 
-        if (startBrick == null) return match;
+        if (startBrick == null || !IsValidBrick(startBrick))
+            return match;
 
         int leftX = startX;
-        while (leftX > 0 && Board[leftX - 1, startY] != null && BrickTypesMatch(startBrick, Board[leftX - 1, startY]))
+        while (leftX > 0 && Board[leftX - 1, startY] != null &&
+               IsValidBrick(Board[leftX - 1, startY]) &&
+               BrickTypesMatch(startBrick, Board[leftX - 1, startY]))
         {
             leftX--;
         }
@@ -126,7 +209,7 @@ public class BoardScript : MonoBehaviour
         for (int x = leftX; x < W; x++)
         {
             BrickScript currentBrick = Board[x, startY];
-            if (currentBrick != null && BrickTypesMatch(startBrick, currentBrick))
+            if (currentBrick != null && IsValidBrick(currentBrick) && BrickTypesMatch(startBrick, currentBrick))
             {
                 match.Add(currentBrick);
             }
@@ -144,10 +227,13 @@ public class BoardScript : MonoBehaviour
         List<BrickScript> match = new List<BrickScript>();
         BrickScript startBrick = Board[startX, startY];
 
-        if (startBrick == null) return match;
+        if (startBrick == null || !IsValidBrick(startBrick))
+            return match;
 
         int topY = startY;
-        while (topY > 1 && Board[startX, topY - 1] != null && BrickTypesMatch(startBrick, Board[startX, topY - 1]))
+        while (topY > 1 && Board[startX, topY - 1] != null &&
+               IsValidBrick(Board[startX, topY - 1]) &&
+               BrickTypesMatch(startBrick, Board[startX, topY - 1]))
         {
             topY--;
         }
@@ -155,7 +241,7 @@ public class BoardScript : MonoBehaviour
         for (int y = topY; y <= H; y++)
         {
             BrickScript currentBrick = Board[startX, y];
-            if (currentBrick != null && BrickTypesMatch(startBrick, currentBrick))
+            if (currentBrick != null && IsValidBrick(currentBrick) && BrickTypesMatch(startBrick, currentBrick))
             {
                 match.Add(currentBrick);
             }
@@ -170,67 +256,60 @@ public class BoardScript : MonoBehaviour
 
     bool BrickTypesMatch(BrickScript brick1, BrickScript brick2)
     {
-        if (brick1 == null || brick2 == null) return false;
+        if (brick1 == null || brick2 == null)
+            return false;
+
+        if (!IsValidBrick(brick1) || !IsValidBrick(brick2))
+            return false;
+
         return brick1.Type == brick2.Type && brick1.Type != BrickType.Undefined;
+    }
+
+    bool IsValidBrick(BrickScript brick)
+    {
+        return brick != null && brick.gameObject != null;
     }
 
     bool HasCurrentMatches()
     {
-        try
-        {
-            List<BrickScript> currentMatches = FindAllMatches();
-            return currentMatches.Count > 0;
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"Exception in HasCurrentMatches: {e.Message}");
-            return false; // If we can't check reliably, assume no matches
-        }
+        List<BrickScript> currentMatches = FindAllMatches();
+        return currentMatches.Count > 0;
     }
 
     bool HasPossibleMoves()
     {
-        try
+        for (int y = 1; y <= H; y++)
         {
-            for (int y = 1; y <= H; y++)
+            for (int x = 0; x < W; x++)
             {
-                for (int x = 0; x < W; x++)
+                if (Board[x, y] != null && IsValidBrick(Board[x, y]))
                 {
-                    if (Board[x, y] != null)
+                    if (CanSwapCreateMatch(x, y, x + 1, y) ||
+                        CanSwapCreateMatch(x, y, x - 1, y) ||
+                        CanSwapCreateMatch(x, y, x, y + 1) ||
+                        CanSwapCreateMatch(x, y, x, y - 1))
                     {
-                        if (CanSwapCreateMatch(x, y, x + 1, y) ||
-                            CanSwapCreateMatch(x, y, x - 1, y) ||
-                            CanSwapCreateMatch(x, y, x, y + 1) ||
-                            CanSwapCreateMatch(x, y, x, y - 1))
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
             }
-            return false;
         }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"Exception in HasPossibleMoves: {e.Message}");
-            return true; // If we can't check reliably, assume moves exist to avoid infinite clearing
-        }
+
+        return false;
     }
 
     bool ShouldClearBoard()
     {
-        // Clear board if there are no current matches AND no possible future matches
         return !HasCurrentMatches() && !HasPossibleMoves();
     }
 
     void CleanupNullBricks()
     {
-        // Clean up any null references in the board array
         for (int y = 0; y <= H; y++)
         {
             for (int x = 0; x < W; x++)
             {
-                if (Board[x, y] != null && Board[x, y] == null)
+                if (Board[x, y] != null && !IsValidBrick(Board[x, y]))
                 {
                     Board[x, y] = null;
                 }
@@ -240,39 +319,39 @@ public class BoardScript : MonoBehaviour
 
     bool CanSwapCreateMatch(int x1, int y1, int x2, int y2)
     {
-        try
-        {
-            if (x2 < 0 || x2 >= W || y2 < 1 || y2 > H) return false;
-            if (Board[x1, y1] == null || Board[x2, y2] == null) return false;
+        if (x2 < 0 || x2 >= W || y2 < 1 || y2 > H)
+            return false;
 
-            BrickScript brick1 = Board[x1, y1];
-            BrickScript brick2 = Board[x2, y2];
+        if (Board[x1, y1] == null || Board[x2, y2] == null)
+            return false;
 
-            // Additional null check after assignment
-            if (brick1 == null || brick2 == null) return false;
+        if (!IsValidBrick(Board[x1, y1]) || !IsValidBrick(Board[x2, y2]))
+            return false;
 
-            Board[x1, y1] = brick2;
-            Board[x2, y2] = brick1;
+        BrickScript brick1 = Board[x1, y1];
+        BrickScript brick2 = Board[x2, y2];
 
-            brick1.SetBoardPosition(x2, y2);
-            brick2.SetBoardPosition(x1, y1);
+        if (brick1 == null || brick2 == null)
+            return false;
 
-            List<BrickScript> matches = FindAllMatches();
-            bool hasMatches = matches.Count > 0;
+        isTestingMoves = true;
 
-            Board[x1, y1] = brick1;
-            Board[x2, y2] = brick2;
+        Board[x1, y1] = brick2;
+        Board[x2, y2] = brick1;
+        brick1.SetBoardPosition(x2, y2);
+        brick2.SetBoardPosition(x1, y1);
 
-            brick1.SetBoardPosition(x1, y1);
-            brick2.SetBoardPosition(x2, y2);
+        List<BrickScript> matches = FindAllMatches();
+        bool hasMatches = matches.Count > 0;
 
-            return hasMatches;
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"Exception in CanSwapCreateMatch at ({x1},{y1}) and ({x2},{y2}): {e.Message}");
-            return false; // If we can't check reliably, assume no match possible
-        }
+        Board[x1, y1] = brick1;
+        Board[x2, y2] = brick2;
+        brick1.SetBoardPosition(x1, y1);
+        brick2.SetBoardPosition(x2, y2);
+
+        isTestingMoves = false;
+
+        return hasMatches;
     }
 
     void ShowNotification(string message, float duration = 3f)
@@ -321,33 +400,32 @@ public class BoardScript : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-        // Spawn all bricks for the entire board instantly
         for (int x = 0; x < W; x++)
         {
             for (int y = H; y >= 1; y--)
             {
                 SpawnBrick(x);
 
-                // Immediately move the spawned brick to its final position
                 if (Board[x, 0] != null)
                 {
                     BrickScript movingBrick = Board[x, 0];
                     Board[x, y] = movingBrick;
                     Board[x, 0] = null;
-
                     movingBrick.SetBoardPosition(x, y);
                     movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
                 }
             }
         }
 
-        // Single wait for all movements to complete
-        yield return new WaitForSeconds(movementDuration + 0.1f);
+        yield return StartCoroutine(WaitForAllMovements());
 
         List<BrickScript> immediateMatches = FindAllMatches();
         if (immediateMatches.Count > 0)
         {
-            StartCoroutine(ProcessMatchesCo());
+            if (!isProcessingMatches)
+            {
+                StartCoroutine(ProcessMatchesCo());
+            }
         }
         else
         {
@@ -355,6 +433,76 @@ public class BoardScript : MonoBehaviour
         }
     }
 
+    public void OnDragSwap(BrickScript sourceBrick, int targetX, int targetY)
+    {
+        Debug.Log($"Drag swap requested from ({sourceBrick.BoardX},{sourceBrick.BoardY}) to ({targetX},{targetY})");
+        Debug.Log($"State check - isPlayerTurn: {isPlayerTurn}, isProcessingSwap: {isProcessingSwap}, isProcessingMatches: {isProcessingMatches}");
+
+        if (!isPlayerTurn)
+        {
+            Debug.Log("Not player turn - ignoring drag");
+            return;
+        }
+
+        if (isProcessingSwap)
+        {
+            Debug.Log("Processing swap - ignoring drag");
+            return;
+        }
+
+        if (isProcessingMatches)
+        {
+            Debug.Log("Processing matches - ignoring drag");
+            return;
+        }
+
+        if (sourceBrick == null || !IsValidBrick(sourceBrick))
+        {
+            Debug.Log("Source brick is invalid - ignoring drag");
+            return;
+        }
+
+        if (sourceBrick.BoardY == 0)
+        {
+            Debug.Log("Dragged from spawn row - ignoring drag");
+            return;
+        }
+
+        if (HasActiveMovements)
+        {
+            Debug.Log("Bricks still moving - ignoring drag");
+            return;
+        }
+
+        if (!boardInitialized)
+        {
+            Debug.Log("Board not initialized - ignoring drag");
+            return;
+        }
+
+        if (targetX < 0 || targetX >= W || targetY < 1 || targetY > H)
+        {
+            Debug.Log($"Target position ({targetX},{targetY}) is out of bounds");
+            return;
+        }
+
+        BrickScript targetBrick = Board[targetX, targetY];
+        if (targetBrick == null || !IsValidBrick(targetBrick))
+        {
+            Debug.Log($"No valid brick at target position ({targetX},{targetY})");
+            return;
+        }
+
+        Debug.Log($"Valid drag swap - starting swap between ({sourceBrick.BoardX},{sourceBrick.BoardY}) and ({targetX},{targetY})");
+
+        if (selectedBrick != null)
+        {
+            selectedBrick.SetSelected(false);
+            selectedBrick = null;
+        }
+
+        StartCoroutine(SwapBricksCo(sourceBrick, targetBrick));
+    }
 
     public void OnBrickClicked(BrickScript clickedBrick)
     {
@@ -365,21 +513,37 @@ public class BoardScript : MonoBehaviour
             Debug.Log("Not player turn - ignoring click");
             return;
         }
+
         if (isProcessingSwap)
         {
             Debug.Log("Processing swap - ignoring click");
             return;
         }
+
         if (isProcessingMatches)
         {
             Debug.Log("Processing matches - ignoring click");
             return;
         }
+
+        if (HasActiveMovements)
+        {
+            Debug.Log("Bricks still moving - ignoring click");
+            return;
+        }
+
+        if (clickedBrick == null || !IsValidBrick(clickedBrick))
+        {
+            Debug.Log("Clicked brick is invalid - ignoring click");
+            return;
+        }
+
         if (clickedBrick.BoardY == 0)
         {
             Debug.Log("Clicked on spawn row - ignoring click");
             return;
         }
+
         if (!boardInitialized)
         {
             Debug.Log("Board not initialized - ignoring click");
@@ -414,20 +578,36 @@ public class BoardScript : MonoBehaviour
 
     bool IsAdjacent(BrickScript brick1, BrickScript brick2)
     {
+        if (brick1 == null || brick2 == null)
+            return false;
+
+        if (!IsValidBrick(brick1) || !IsValidBrick(brick2))
+            return false;
+
         int dx = Mathf.Abs(brick1.BoardX - brick2.BoardX);
         int dy = Mathf.Abs(brick1.BoardY - brick2.BoardY);
         bool adjacent = (dx == 1 && dy == 0) || (dx == 0 && dy == 1);
-
-        Debug.Log($"Adjacency check: Brick1({brick1.BoardX},{brick1.BoardY}) vs Brick2({brick2.BoardX},{brick2.BoardY}) -> dx={dx}, dy={dy}, adjacent={adjacent}");
 
         return adjacent;
     }
 
     IEnumerator SwapBricksCo(BrickScript brick1, BrickScript brick2)
     {
+        Debug.Log("=== STARTING SWAP ===");
         isProcessingSwap = true;
-        brick1.SetSelected(false);
-        selectedBrick = null;
+
+        if (selectedBrick != null)
+        {
+            selectedBrick.SetSelected(false);
+            selectedBrick = null;
+        }
+
+        if (!IsValidBrick(brick1) || !IsValidBrick(brick2))
+        {
+            Debug.LogWarning("One or both bricks became invalid during swap!");
+            isProcessingSwap = false;
+            yield break;
+        }
 
         Vector3 pos1 = GetWorldPosition(brick1.BoardX, brick1.BoardY);
         Vector3 pos2 = GetWorldPosition(brick2.BoardX, brick2.BoardY);
@@ -437,109 +617,96 @@ public class BoardScript : MonoBehaviour
         int originalBrick2X = brick2.BoardX;
         int originalBrick2Y = brick2.BoardY;
 
-        if (brick1 != null && brick2 != null)
-        {
-            Board[originalBrick1X, originalBrick1Y] = brick2;
-            Board[originalBrick2X, originalBrick2Y] = brick1;
+        Board[originalBrick1X, originalBrick1Y] = brick2;
+        Board[originalBrick2X, originalBrick2Y] = brick1;
+        brick1.SetBoardPosition(originalBrick2X, originalBrick2Y);
+        brick2.SetBoardPosition(originalBrick1X, originalBrick1Y);
 
-            brick1.SetBoardPosition(originalBrick2X, originalBrick2Y);
-            brick2.SetBoardPosition(originalBrick1X, originalBrick1Y);
-        }
+        brick1.MoveTo(pos2, movementDuration);
+        brick2.MoveTo(pos1, movementDuration);
 
-        // Check if bricks are still valid before moving them
-        if (brick1 != null)
-        {
-            brick1.MoveTo(pos2, movementDuration);
-        }
-        if (brick2 != null)
-        {
-            brick2.MoveTo(pos1, movementDuration);
-        }
-
-        yield return new WaitForSeconds(movementDuration);
+        yield return StartCoroutine(WaitForAllMovements());
 
         List<BrickScript> matches = FindAllMatches();
 
         if (matches.Count == 0)
         {
             Debug.Log($"No matches created - reverting swap");
-            Debug.Log($"Reverting: Brick1 from ({brick1.BoardX},{brick1.BoardY}) to ({originalBrick1X},{originalBrick1Y})");
-            Debug.Log($"Reverting: Brick2 from ({brick2.BoardX},{brick2.BoardY}) to ({originalBrick2X},{originalBrick2Y})");
 
             Board[originalBrick2X, originalBrick2Y] = brick2;
             Board[originalBrick1X, originalBrick1Y] = brick1;
+            brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
+            brick2.SetBoardPosition(originalBrick2X, originalBrick2Y);
 
-            if (brick1 != null)
-            {
-                brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
-            }
-            if (brick2 != null)
-            {
-                brick2.SetBoardPosition(originalBrick2X, originalBrick2Y);
-            }
-
-            Debug.Log($"Starting revert animation - Brick1 to {pos1}, Brick2 to {pos2}");
-            // Check if bricks are still valid before reverting movement
-            if (brick1 != null)
+            if (IsValidBrick(brick1))
             {
                 brick1.MoveTo(pos1, movementDuration);
             }
-            if (brick2 != null)
+
+            if (IsValidBrick(brick2))
             {
                 brick2.MoveTo(pos2, movementDuration);
             }
 
-            yield return new WaitForSeconds(movementDuration);
-            Debug.Log($"Revert animation completed");
+            yield return StartCoroutine(WaitForAllMovements());
 
             ShowNotification("No match created!", 1.5f);
         }
         else
         {
             Debug.Log($"Matches created - processing {matches.Count} matches");
-            StartCoroutine(ProcessMatchesCo());
+
+            if (!isProcessingMatches)
+            {
+                StartCoroutine(ProcessMatchesCo());
+            }
         }
 
         isProcessingSwap = false;
+        Debug.Log("=== SWAP COMPLETE - isProcessingSwap now FALSE ===");
     }
 
     IEnumerator ProcessMatchesCo()
     {
+        if (isProcessingMatches)
+        {
+            Debug.LogWarning("ProcessMatchesCo already running, skipping duplicate call");
+            yield break;
+        }
+
         isProcessingMatches = true;
 
         while (true)
         {
             List<BrickScript> matches = FindAllMatches();
+
             if (matches.Count == 0)
             {
                 break;
             }
 
-
             foreach (BrickScript match in matches)
             {
-                if (match != null && match.BoardX >= 0 && match.BoardX < W && match.BoardY >= 0 && match.BoardY <= H)
+                if (match != null && IsValidBrick(match) &&
+                    match.BoardX >= 0 && match.BoardX < W &&
+                    match.BoardY >= 0 && match.BoardY <= H)
                 {
                     Board[match.BoardX, match.BoardY] = null;
                     Destroy(match.gameObject);
                 }
             }
 
-            // Clean up any remaining null references
             CleanupNullBricks();
 
-            yield return new WaitForSeconds(0.2f);
+            yield return new WaitForSeconds(0.1f);
 
             yield return StartCoroutine(SettleAllColumnsCo());
-
-            yield return new WaitForSeconds(0.3f);
         }
 
         isProcessingMatches = false;
 
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(0.2f);
 
-        // Check if there are any immediate matches first
         if (HasCurrentMatches())
         {
             Debug.Log("Found immediate matches after processing, continuing...");
@@ -554,10 +721,15 @@ public class BoardScript : MonoBehaviour
 
     IEnumerator SettleAllColumnsCo()
     {
-        // First, drop all existing bricks down
+        Debug.Log("=== STARTING SETTLEMENT ===");
+
         bool anyMovement = true;
-        while (anyMovement)
+        int settlementIterations = 0;
+        int maxSettlementIterations = 50;
+
+        while (anyMovement && settlementIterations < maxSettlementIterations)
         {
+            settlementIterations++;
             anyMovement = false;
 
             for (int x = 0; x < W; x++)
@@ -572,20 +744,16 @@ public class BoardScript : MonoBehaviour
                             {
                                 BrickScript movingBrick = Board[x, searchY];
 
-                                // Check if brick is still valid before moving it
-                                if (movingBrick != null)
+                                if (IsValidBrick(movingBrick))
                                 {
                                     Board[x, y] = movingBrick;
                                     Board[x, searchY] = null;
-
                                     movingBrick.SetBoardPosition(x, y);
                                     movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
-
                                     anyMovement = true;
                                 }
                                 else
                                 {
-                                    // Clear the null reference from the board
                                     Board[x, searchY] = null;
                                 }
                                 break;
@@ -597,69 +765,130 @@ public class BoardScript : MonoBehaviour
 
             if (anyMovement)
             {
-                yield return new WaitForSeconds(movementDuration + settlementDelay);
+                yield return StartCoroutine(WaitForAllMovements());
             }
         }
 
-        // Now spawn all needed bricks for each column simultaneously
-        for (int x = 0; x < W; x++)
+        if (settlementIterations >= maxSettlementIterations)
         {
-            // Count how many empty spaces this column has
-            int emptyCount = 0;
-            for (int y = 1; y <= H; y++)
+            Debug.LogError("Settlement exceeded max iterations! Possible infinite loop prevented.");
+        }
+
+        bool stillNeedsSettlement = true;
+        int spawnIterations = 0;
+        int maxSpawnIterations = 100;
+
+        while (stillNeedsSettlement && spawnIterations < maxSpawnIterations)
+        {
+            spawnIterations++;
+            stillNeedsSettlement = false;
+
+            for (int x = 0; x < W; x++)
             {
-                if (Board[x, y] == null)
-                    emptyCount++;
+                if (Board[x, 0] == null)
+                {
+                    bool hasEmptySpace = false;
+                    for (int y = 1; y <= H; y++)
+                    {
+                        if (Board[x, y] == null)
+                        {
+                            hasEmptySpace = true;
+                            break;
+                        }
+                    }
+
+                    if (hasEmptySpace)
+                    {
+                        BrickScript spawned = SpawnBrick(x);
+                        if (spawned != null)
+                        {
+                            stillNeedsSettlement = true;
+                        }
+                    }
+                }
             }
 
-            // Spawn all needed bricks at once for this column
-            for (int spawnIndex = 0; spawnIndex < emptyCount; spawnIndex++)
-            {
-                SpawnBrick(x);
+            bool bricksMoving = true;
+            int movementIterations = 0;
+            int maxMovementIterations = 50;
 
-                // Move the newly spawned brick to the first empty position
-                if (Board[x, 0] != null)
+            while (bricksMoving && movementIterations < maxMovementIterations)
+            {
+                movementIterations++;
+                bricksMoving = false;
+
+                for (int x = 0; x < W; x++)
                 {
                     for (int y = H; y >= 1; y--)
                     {
                         if (Board[x, y] == null)
                         {
-                            BrickScript movingBrick = Board[x, 0];
-
-                            // Check if the spawned brick is still valid
-                            if (movingBrick != null)
+                            for (int searchY = y - 1; searchY >= 0; searchY--)
                             {
-                                Board[x, y] = movingBrick;
-                                Board[x, 0] = null;
+                                if (Board[x, searchY] != null)
+                                {
+                                    BrickScript movingBrick = Board[x, searchY];
 
-                                movingBrick.SetBoardPosition(x, y);
-                                movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                                    if (IsValidBrick(movingBrick))
+                                    {
+                                        Board[x, y] = movingBrick;
+                                        Board[x, searchY] = null;
+                                        movingBrick.SetBoardPosition(x, y);
+                                        movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                                        bricksMoving = true;
+                                    }
+                                    else
+                                    {
+                                        Board[x, searchY] = null;
+                                    }
+                                    break;
+                                }
                             }
-                            else
-                            {
-                                // Clear the null reference
-                                Board[x, 0] = null;
-                            }
-                            break;
                         }
                     }
                 }
+
+                if (bricksMoving)
+                {
+                    yield return StartCoroutine(WaitForAllMovements());
+                }
             }
+
+            if (movementIterations >= maxMovementIterations)
+            {
+                Debug.LogError("Movement settlement exceeded max iterations!");
+            }
+
+            yield return null;
         }
 
-        // Wait for all the new brick movements to complete
-        yield return new WaitForSeconds(movementDuration + settlementDelay);
+        if (spawnIterations >= maxSpawnIterations)
+        {
+            Debug.LogError("Spawn iterations exceeded max! Possible infinite loop prevented.");
+        }
 
-        // After settlement, check if we have immediate matches or need board refresh
+        yield return StartCoroutine(WaitForAllMovements());
+
+        Debug.Log("=== SETTLEMENT COMPLETE - CHECKING FOR MATCHES ===");
+
+        yield return null;
+
         if (HasCurrentMatches())
         {
             Debug.Log("Found matches after settlement, processing...");
-            StartCoroutine(ProcessMatchesCo());
+            if (!isProcessingMatches)
+            {
+                StartCoroutine(ProcessMatchesCo());
+            }
         }
         else if (ShouldClearBoard())
         {
             Debug.Log("No current matches and no possible moves after settlement - clearing and refilling board");
             StartCoroutine(ClearAndRefillBoardCo());
+        }
+        else
+        {
+            Debug.Log("Settlement complete - no new matches");
         }
     }
 
@@ -669,36 +898,36 @@ public class BoardScript : MonoBehaviour
         {
             Debug.Log("Initializing board...");
 
-            // Spawn all bricks for the entire board instantly
             for (int x = 0; x < W; x++)
             {
                 for (int y = H; y >= 1; y--)
                 {
                     SpawnBrick(x);
 
-                    // Immediately move the spawned brick to its final position
                     if (Board[x, 0] != null)
                     {
                         BrickScript movingBrick = Board[x, 0];
                         Board[x, y] = movingBrick;
                         Board[x, 0] = null;
-
                         movingBrick.SetBoardPosition(x, y);
                         movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
                     }
                 }
             }
 
-            // Single wait for all initial movements to complete
-            yield return new WaitForSeconds(movementDuration + 0.1f);
+            yield return StartCoroutine(WaitForAllMovements());
+
             boardInitialized = true;
 
-            yield return new WaitForSeconds(0.3f);
+            yield return new WaitForSeconds(0.1f);
 
             if (HasCurrentMatches())
             {
                 Debug.Log("Found matches in initial board, processing...");
-                StartCoroutine(ProcessMatchesCo());
+                if (!isProcessingMatches)
+                {
+                    StartCoroutine(ProcessMatchesCo());
+                }
             }
             else if (ShouldClearBoard())
             {
@@ -715,7 +944,7 @@ public class BoardScript : MonoBehaviour
                 continue;
             }
 
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(0.1f);
         }
     }
 }
