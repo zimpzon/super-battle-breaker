@@ -174,6 +174,12 @@ public class BoardScript : MonoBehaviour
         return brick1.Type == brick2.Type && brick1.Type != BrickType.Undefined;
     }
 
+    bool HasCurrentMatches()
+    {
+        List<BrickScript> currentMatches = FindAllMatches();
+        return currentMatches.Count > 0;
+    }
+
     bool HasPossibleMoves()
     {
         for (int y = 1; y <= H; y++)
@@ -193,6 +199,12 @@ public class BoardScript : MonoBehaviour
             }
         }
         return false;
+    }
+
+    bool ShouldClearBoard()
+    {
+        // Clear board if there are no current matches AND no possible future matches
+        return !HasCurrentMatches() && !HasPossibleMoves();
     }
 
     bool CanSwapCreateMatch(int x1, int y1, int x2, int y2)
@@ -456,8 +468,15 @@ public class BoardScript : MonoBehaviour
 
         yield return new WaitForSeconds(1f);
 
-        if (!HasPossibleMoves())
+        // Check if there are any immediate matches first
+        if (HasCurrentMatches())
         {
+            Debug.Log("Found immediate matches after processing, continuing...");
+            StartCoroutine(ProcessMatchesCo());
+        }
+        else if (ShouldClearBoard())
+        {
+            Debug.Log("No current matches and no possible moves - clearing and refilling board");
             StartCoroutine(ClearAndRefillBoardCo());
         }
     }
@@ -539,6 +558,18 @@ public class BoardScript : MonoBehaviour
 
         // Wait for all the new brick movements to complete
         yield return new WaitForSeconds(movementDuration + settlementDelay);
+
+        // After settlement, check if we have immediate matches or need board refresh
+        if (HasCurrentMatches())
+        {
+            Debug.Log("Found matches after settlement, processing...");
+            StartCoroutine(ProcessMatchesCo());
+        }
+        else if (ShouldClearBoard())
+        {
+            Debug.Log("No current matches and no possible moves after settlement - clearing and refilling board");
+            StartCoroutine(ClearAndRefillBoardCo());
+        }
     }
 
     IEnumerator SettleCo()
@@ -546,48 +577,41 @@ public class BoardScript : MonoBehaviour
         if (!boardInitialized)
         {
             Debug.Log("Initializing board...");
-            for (int y = H; y >= 1; y--)
+
+            // Spawn all bricks for the entire board instantly
+            for (int x = 0; x < W; x++)
             {
-                for (int x = 0; x < W; x++)
+                for (int y = H; y >= 1; y--)
                 {
                     SpawnBrick(x);
-                    yield return new WaitForSeconds(0.02f);
-                }
 
-                bool anyMovement = true;
-                while (anyMovement)
-                {
-                    anyMovement = false;
-                    for (int col = 0; col < W; col++)
+                    // Immediately move the spawned brick to its final position
+                    if (Board[x, 0] != null)
                     {
-                        for (int row = H; row >= 1; row--)
-                        {
-                            if (Board[col, row] == null && Board[col, 0] != null)
-                            {
-                                BrickScript movingBrick = Board[col, 0];
-                                Board[col, 0] = null;
-                                Board[col, row] = movingBrick;
-                                movingBrick.SetBoardPosition(col, row);
-                                movingBrick.MoveTo(GetWorldPosition(col, row), movementDuration);
-                                anyMovement = true;
-                                break;
-                            }
-                        }
+                        BrickScript movingBrick = Board[x, 0];
+                        Board[x, y] = movingBrick;
+                        Board[x, 0] = null;
+
+                        movingBrick.SetBoardPosition(x, y);
+                        movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
                     }
-                    yield return new WaitForSeconds(movementDuration + 0.05f);
                 }
             }
+
+            // Single wait for all initial movements to complete
+            yield return new WaitForSeconds(movementDuration + 0.1f);
             boardInitialized = true;
 
             yield return new WaitForSeconds(0.3f);
 
-            List<BrickScript> initialMatches = FindAllMatches();
-            if (initialMatches.Count > 0)
+            if (HasCurrentMatches())
             {
+                Debug.Log("Found matches in initial board, processing...");
                 StartCoroutine(ProcessMatchesCo());
             }
-            else if (!HasPossibleMoves())
+            else if (ShouldClearBoard())
             {
+                Debug.Log("Initial board has no matches and no possible moves - reshuffling");
                 StartCoroutine(ClearAndRefillBoardCo());
             }
         }
