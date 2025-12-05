@@ -95,7 +95,9 @@ public class BoardScript : MonoBehaviour
 
     Vector3 GetWorldPosition(int x, int y)
     {
-        return new Vector3(x * brickSize, -y * brickSize, 0);
+        // Use negative Z to ensure bricks are in front of background, with slight depth variation
+        float z = -0.1f - (y * 0.001f);
+        return new Vector3(x * brickSize, -y * brickSize, z);
     }
 
     List<BrickScript> FindAllMatches()

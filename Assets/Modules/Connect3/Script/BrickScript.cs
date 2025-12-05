@@ -63,29 +63,17 @@ public class BrickScript : MonoBehaviour
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
-
-        Collider2D existingCollider = GetComponent<Collider2D>();
-        if (existingCollider == null)
-        {
-            BoxCollider2D collider = gameObject.AddComponent<BoxCollider2D>();
-            collider.isTrigger = false;
-            collider.size = Vector2.one * 0.9f;
-            Debug.Log($"Added BoxCollider2D to brick at {transform.position}");
-        }
-        else
-        {
-            existingCollider.isTrigger = false;
-            if (existingCollider is BoxCollider2D box)
-            {
-                box.size = Vector2.one * 0.9f;
-            }
-            Debug.Log($"Found existing collider on brick at {transform.position}");
-        }
     }
 
     void OnMouseDown()
     {
-        Debug.Log($"OnMouseDown: Brick with BrickType {Type} at board coords ({BoardX},{BoardY}), world position {transform.position}");
+        Debug.Log($"=== CLICK DETECTED ===");
+        Debug.Log($"GameObject: {gameObject.name}");
+        Debug.Log($"BrickType: {Type}");
+        Debug.Log($"Board coords: ({BoardX},{BoardY})");
+        Debug.Log($"World position: {transform.position}");
+        Debug.Log($"Mouse position: {Input.mousePosition}");
+        Debug.Log($"World mouse position: {Camera.main.ScreenToWorldPoint(Input.mousePosition)}");
 
         if (BoardScript.Instance != null)
         {
@@ -93,7 +81,7 @@ public class BrickScript : MonoBehaviour
         }
         else
         {
-            Debug.Log("BoardScript.Instance is null!");
+            Debug.LogError("BoardScript.Instance is null!");
         }
     }
 
