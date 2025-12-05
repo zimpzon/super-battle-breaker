@@ -267,39 +267,28 @@ public class BoardScript : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-        for (int y = H; y >= 1; y--)
+        // Spawn all bricks for the entire board instantly
+        for (int x = 0; x < W; x++)
         {
-            for (int x = 0; x < W; x++)
+            for (int y = H; y >= 1; y--)
             {
                 SpawnBrick(x);
-                yield return new WaitForSeconds(0.02f);
-            }
 
-            bool anyMovement = true;
-            while (anyMovement)
-            {
-                anyMovement = false;
-                for (int col = 0; col < W; col++)
+                // Immediately move the spawned brick to its final position
+                if (Board[x, 0] != null)
                 {
-                    for (int row = H; row >= 1; row--)
-                    {
-                        if (Board[col, row] == null && Board[col, 0] != null)
-                        {
-                            BrickScript movingBrick = Board[col, 0];
-                            Board[col, row] = movingBrick;
-                            Board[col, 0] = null;
+                    BrickScript movingBrick = Board[x, 0];
+                    Board[x, y] = movingBrick;
+                    Board[x, 0] = null;
 
-                            movingBrick.SetBoardPosition(col, row);
-                            movingBrick.MoveTo(GetWorldPosition(col, row), movementDuration);
-
-                            anyMovement = true;
-                            break;
-                        }
-                    }
+                    movingBrick.SetBoardPosition(x, y);
+                    movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
                 }
-                yield return new WaitForSeconds(movementDuration + 0.05f);
             }
         }
+
+        // Single wait for all movements to complete
+        yield return new WaitForSeconds(movementDuration + 0.1f);
 
         List<BrickScript> immediateMatches = FindAllMatches();
         if (immediateMatches.Count > 0)
@@ -475,6 +464,7 @@ public class BoardScript : MonoBehaviour
 
     IEnumerator SettleAllColumnsCo()
     {
+        // First, drop all existing bricks down
         bool anyMovement = true;
         while (anyMovement)
         {
@@ -503,30 +493,6 @@ public class BoardScript : MonoBehaviour
                         }
                     }
                 }
-
-                for (int y = H; y >= 1; y--)
-                {
-                    if (Board[x, y] == null)
-                    {
-                        if (Board[x, 0] != null)
-                        {
-                            BrickScript movingBrick = Board[x, 0];
-                            Board[x, y] = movingBrick;
-                            Board[x, 0] = null;
-
-                            movingBrick.SetBoardPosition(x, y);
-                            movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
-
-                            anyMovement = true;
-                        }
-                        else
-                        {
-                            SpawnBrick(x);
-                            anyMovement = true;
-                        }
-                        break;
-                    }
-                }
             }
 
             if (anyMovement)
@@ -534,6 +500,45 @@ public class BoardScript : MonoBehaviour
                 yield return new WaitForSeconds(movementDuration + settlementDelay);
             }
         }
+
+        // Now spawn all needed bricks for each column simultaneously
+        for (int x = 0; x < W; x++)
+        {
+            // Count how many empty spaces this column has
+            int emptyCount = 0;
+            for (int y = 1; y <= H; y++)
+            {
+                if (Board[x, y] == null)
+                    emptyCount++;
+            }
+
+            // Spawn all needed bricks at once for this column
+            for (int spawnIndex = 0; spawnIndex < emptyCount; spawnIndex++)
+            {
+                SpawnBrick(x);
+
+                // Move the newly spawned brick to the first empty position
+                if (Board[x, 0] != null)
+                {
+                    for (int y = H; y >= 1; y--)
+                    {
+                        if (Board[x, y] == null)
+                        {
+                            BrickScript movingBrick = Board[x, 0];
+                            Board[x, y] = movingBrick;
+                            Board[x, 0] = null;
+
+                            movingBrick.SetBoardPosition(x, y);
+                            movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Wait for all the new brick movements to complete
+        yield return new WaitForSeconds(movementDuration + settlementDelay);
     }
 
     IEnumerator SettleCo()
