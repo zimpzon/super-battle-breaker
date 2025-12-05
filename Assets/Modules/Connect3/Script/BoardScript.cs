@@ -2,6 +2,28 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
+public struct MovingBrick
+{
+    public BrickScript brick;
+    public Vector3 startPosition;
+    public Vector3 targetPosition;
+    public float startTime;
+    public float duration;
+
+    public MovingBrick(BrickScript brick, Vector3 startPos, Vector3 targetPos, float duration)
+    {
+        this.brick = brick;
+        this.startPosition = startPos;
+        this.targetPosition = targetPos;
+        this.startTime = Time.time;
+        this.duration = duration;
+    }
+
+    public bool IsComplete => Time.time >= startTime + duration;
+    public float Progress => Mathf.Clamp01((Time.time - startTime) / duration);
+}
+
 public class BoardScript : MonoBehaviour
 {
     private const int W = 8;
@@ -21,55 +43,72 @@ public class BoardScript : MonoBehaviour
     public bool isTestingMoves = false;
     private bool boardInitialized = false;
 
-    // Movement tracking
-    private int activeMovements = 0;
-    public bool HasActiveMovements => activeMovements > 0;
+    // Movement tracking - simple list-based system
+    private List<MovingBrick> movingBricks = new List<MovingBrick>();
+    public bool HasActiveMovements => movingBricks.Count > 0;
 
-    public void StartMovement()
+    public void AddMovingBrick(BrickScript brick, Vector3 targetPosition, float duration)
     {
-        activeMovements++;
+        if (brick != null)
+        {
+            // Remove any existing movements for this brick first
+            movingBricks.RemoveAll(m => m.brick == brick);
+
+            Vector3 startPos = brick.transform.position;
+            MovingBrick movement = new MovingBrick(brick, startPos, targetPosition, duration);
+            movingBricks.Add(movement);
+        }
     }
 
-    public void EndMovement()
+    // Safely move a brick in the Board array, clearing any previous assignments
+    private void MoveBrickInArray(BrickScript brick, int fromX, int fromY, int toX, int toY)
     {
-        activeMovements--;
-        if (activeMovements < 0)
+        // First, clear the brick from its previous position in the array
+        ClearBrickFromArray(brick);
+
+        // Now assign it to the new position
+        Board[toX, toY] = brick;
+        if (fromX >= 0 && fromY >= 0)
         {
-            Debug.LogWarning("activeMovements went negative! Resetting to 0.");
-            activeMovements = 0;
+            Board[fromX, fromY] = null;
         }
+    }
+
+    // Clear a brick from all positions in the Board array (fixes corruption)
+    private void ClearBrickFromArray(BrickScript brick)
+    {
+        if (brick == null) return;
+
+        for (int y = 0; y <= H; y++)
+        {
+            for (int x = 0; x < W; x++)
+            {
+                if (Board[x, y] == brick)
+                {
+                    Board[x, y] = null;
+                }
+            }
+        }
+    }
+
+    // Safely swap two bricks in the Board array
+    private void SwapBricksInArray(BrickScript brick1, int x1, int y1, BrickScript brick2, int x2, int y2)
+    {
+        // Clear both bricks from any previous positions
+        ClearBrickFromArray(brick1);
+        ClearBrickFromArray(brick2);
+
+        // Now assign them to their new positions
+        Board[x1, y1] = brick2;
+        Board[x2, y2] = brick1;
     }
 
     public IEnumerator WaitForAllMovements()
     {
-        if (HasActiveMovements)
-        {
-            Debug.Log($"WaitForAllMovements: Waiting for {activeMovements} active movements to complete...");
-        }
-
-        int frameCount = 0;
-        int maxFrames = 600; // 10 seconds at 60fps safety limit
-
-        while (HasActiveMovements && frameCount < maxFrames)
+        // Wait for all movements to complete
+        while (HasActiveMovements)
         {
             yield return null;
-            frameCount++;
-
-            if (frameCount % 60 == 0)
-            {
-                Debug.LogWarning($"WaitForAllMovements: Still waiting after {frameCount} frames. activeMovements={activeMovements}");
-            }
-        }
-
-        if (frameCount >= maxFrames)
-        {
-            Debug.LogError($"WaitForAllMovements: Timeout after {maxFrames} frames! Force resetting activeMovements from {activeMovements} to 0");
-            activeMovements = 0;
-        }
-
-        if (frameCount > 0 && frameCount < maxFrames)
-        {
-            Debug.Log($"WaitForAllMovements: All movements completed after {frameCount} frames");
         }
     }
 
@@ -86,20 +125,44 @@ public class BoardScript : MonoBehaviour
 
     void Update()
     {
-        // Debug key to reset stuck flags
-        if (Input.GetKeyDown(KeyCode.R))
+        // Process moving bricks
+        for (int i = movingBricks.Count - 1; i >= 0; i--)
         {
-            Debug.Log($"RESET FLAGS - Before: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={activeMovements}");
-            isProcessingSwap = false;
-            isProcessingMatches = false;
-            activeMovements = 0;
-            Debug.Log($"RESET FLAGS - After: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={activeMovements}");
+            MovingBrick movement = movingBricks[i];
+
+            // Check if brick is still valid
+            if (movement.brick == null || movement.brick.gameObject == null)
+            {
+                movingBricks.RemoveAt(i);
+                continue;
+            }
+
+            // Update position based on progress
+            float progress = movement.Progress;
+            movement.brick.transform.position = Vector3.Lerp(movement.startPosition, movement.targetPosition, progress);
+
+            // Remove if complete
+            if (movement.IsComplete)
+            {
+                movement.brick.transform.position = movement.targetPosition;
+                movingBricks.RemoveAt(i);
+            }
         }
 
-        // Debug key to show current state
+        // Debug key to show current state WITHOUT resetting
         if (Input.GetKeyDown(KeyCode.T))
         {
-            Debug.Log($"STATE CHECK - isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={activeMovements}, hasActiveMovements={HasActiveMovements}");
+            Debug.Log($"STATE CHECK - isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={movingBricks.Count}");
+        }
+
+        // Emergency reset key for stuck states (separate key)
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            Debug.Log($"EMERGENCY RESET - WAS: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={movingBricks.Count}");
+            isProcessingSwap = false;
+            isProcessingMatches = false;
+            movingBricks.Clear();
+            Debug.Log($"EMERGENCY RESET - NOW: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={movingBricks.Count}");
         }
     }
 
@@ -617,8 +680,7 @@ public class BoardScript : MonoBehaviour
         int originalBrick2X = brick2.BoardX;
         int originalBrick2Y = brick2.BoardY;
 
-        Board[originalBrick1X, originalBrick1Y] = brick2;
-        Board[originalBrick2X, originalBrick2Y] = brick1;
+        SwapBricksInArray(brick1, originalBrick1X, originalBrick1Y, brick2, originalBrick2X, originalBrick2Y);
         brick1.SetBoardPosition(originalBrick2X, originalBrick2Y);
         brick2.SetBoardPosition(originalBrick1X, originalBrick1Y);
 
@@ -633,8 +695,7 @@ public class BoardScript : MonoBehaviour
         {
             Debug.Log($"No matches created - reverting swap");
 
-            Board[originalBrick2X, originalBrick2Y] = brick2;
-            Board[originalBrick1X, originalBrick1Y] = brick1;
+            SwapBricksInArray(brick1, originalBrick2X, originalBrick2Y, brick2, originalBrick1X, originalBrick1Y);
             brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
             brick2.SetBoardPosition(originalBrick2X, originalBrick2Y);
 
@@ -732,6 +793,9 @@ public class BoardScript : MonoBehaviour
             settlementIterations++;
             anyMovement = false;
 
+            // Track bricks that have been moved in this settlement pass
+            HashSet<BrickScript> movedBricksThisPass = new HashSet<BrickScript>();
+
             for (int x = 0; x < W; x++)
             {
                 for (int y = H; y >= 1; y--)
@@ -744,12 +808,12 @@ public class BoardScript : MonoBehaviour
                             {
                                 BrickScript movingBrick = Board[x, searchY];
 
-                                if (IsValidBrick(movingBrick))
+                                if (IsValidBrick(movingBrick) && !movedBricksThisPass.Contains(movingBrick))
                                 {
-                                    Board[x, y] = movingBrick;
-                                    Board[x, searchY] = null;
+                                    MoveBrickInArray(movingBrick, x, searchY, x, y);
                                     movingBrick.SetBoardPosition(x, y);
                                     movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                                    movedBricksThisPass.Add(movingBrick);
                                     anyMovement = true;
                                 }
                                 else
@@ -817,6 +881,9 @@ public class BoardScript : MonoBehaviour
                 movementIterations++;
                 bricksMoving = false;
 
+                // Track bricks moved in this inner settlement pass
+                HashSet<BrickScript> movedBricksThisInnerPass = new HashSet<BrickScript>();
+
                 for (int x = 0; x < W; x++)
                 {
                     for (int y = H; y >= 1; y--)
@@ -829,12 +896,12 @@ public class BoardScript : MonoBehaviour
                                 {
                                     BrickScript movingBrick = Board[x, searchY];
 
-                                    if (IsValidBrick(movingBrick))
+                                    if (IsValidBrick(movingBrick) && !movedBricksThisInnerPass.Contains(movingBrick))
                                     {
-                                        Board[x, y] = movingBrick;
-                                        Board[x, searchY] = null;
+                                        MoveBrickInArray(movingBrick, x, searchY, x, y);
                                         movingBrick.SetBoardPosition(x, y);
                                         movingBrick.MoveTo(GetWorldPosition(x, y), movementDuration);
+                                        movedBricksThisInnerPass.Add(movingBrick);
                                         bricksMoving = true;
                                     }
                                     else

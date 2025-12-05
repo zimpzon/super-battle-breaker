@@ -184,8 +184,6 @@ public class BrickScript : MonoBehaviour
         }
     }
 
-    private Coroutine currentMovement;
-
     public void MoveTo(Vector3 worldPosition, float duration = 0.2f)
     {
         // Check if this brick has been destroyed
@@ -194,65 +192,10 @@ public class BrickScript : MonoBehaviour
             return;
         }
 
-        // Stop any existing movement animation
-        if (currentMovement != null)
-        {
-            try
-            {
-                StopCoroutine(currentMovement);
-                // End the previous movement tracking
-                if (BoardScript.Instance != null)
-                {
-                    BoardScript.Instance.EndMovement();
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"Failed to stop coroutine on destroyed brick: {e.Message}");
-            }
-        }
-
-        // Start tracking this movement
+        // Register this movement with the BoardScript
         if (BoardScript.Instance != null)
         {
-            BoardScript.Instance.StartMovement();
-        }
-
-        try
-        {
-            currentMovement = StartCoroutine(MoveToCo(worldPosition, duration));
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"Failed to start movement coroutine on destroyed brick: {e.Message}");
-            // If movement failed to start, end the tracking
-            if (BoardScript.Instance != null)
-            {
-                BoardScript.Instance.EndMovement();
-            }
-        }
-    }
-
-    private System.Collections.IEnumerator MoveToCo(Vector3 targetPosition, float duration)
-    {
-        Vector3 startPosition = transform.position;
-        float elapsed = 0f;
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = elapsed / duration;
-            transform.position = Vector3.Lerp(startPosition, targetPosition, t);
-            yield return null;
-        }
-
-        transform.position = targetPosition;
-        currentMovement = null; // Clear reference when animation completes
-
-        // End movement tracking
-        if (BoardScript.Instance != null)
-        {
-            BoardScript.Instance.EndMovement();
+            BoardScript.Instance.AddMovingBrick(this, worldPosition, duration);
         }
     }
 }
