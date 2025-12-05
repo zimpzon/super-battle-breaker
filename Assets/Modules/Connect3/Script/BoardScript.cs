@@ -21,6 +21,8 @@ public class BoardScript : MonoBehaviour
     private bool isProcessingMatches = false;
     private bool boardInitialized = false;
 
+    public Transform Upperleft;
+
     [Header("UI")]
     public UnityEngine.UI.Text notificationText;
 
@@ -28,29 +30,6 @@ public class BoardScript : MonoBehaviour
     {
         Instance = this;
         StartCoroutine(SettleCo());
-    }
-
-    void Update()
-    {
-
-    }
-
-    bool TryFindEmptySquare(out Vector2Int emptySquare)
-    {
-        emptySquare = Vector2Int.zero;
-
-        for (int y = 1; y < H; y++)
-        {
-            for (int x = 0; x < W; x++)
-            {
-                if (Board[x, y] == null)
-                {
-                    emptySquare = new Vector2Int(x, y);
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     BrickScript SpawnBrick(int x)
@@ -62,7 +41,7 @@ public class BoardScript : MonoBehaviour
         if (prefab == null)
             return null;
 
-        GameObject newBrickObj = Instantiate(prefab, GetWorldPosition(x, 0), Quaternion.identity);
+        GameObject newBrickObj = Instantiate(prefab, GetWorldPosition(x, 0), Quaternion.identity, parent: Upperleft.transform);
         BrickScript newBrick = newBrickObj.GetComponent<BrickScript>();
 
         if (newBrick != null)
@@ -81,23 +60,11 @@ public class BoardScript : MonoBehaviour
         return newBrick;
     }
 
-    void MoveBrick(BrickScript brick, int newX, int newY)
-    {
-        if (brick == null)
-            return;
-
-        Board[brick.BoardX, brick.BoardY] = null;
-        Board[newX, newY] = brick;
-
-        brick.SetBoardPosition(newX, newY);
-        brick.MoveTo(GetWorldPosition(newX, newY));
-    }
-
     Vector3 GetWorldPosition(int x, int y)
     {
         // Use negative Z to ensure bricks are in front of background, with slight depth variation
         float z = -0.1f - (y * 0.001f);
-        return new Vector3(x * brickSize, -y * brickSize, z);
+        return new Vector3(x * brickSize + Upperleft.position.x , -y * brickSize + Upperleft.position.y, z);
     }
 
     List<BrickScript> FindAllMatches()
@@ -443,6 +410,8 @@ public class BoardScript : MonoBehaviour
         if (matches.Count == 0)
         {
             Debug.Log($"No matches created - reverting swap");
+            Debug.Log($"Reverting: Brick1 from ({brick1.BoardX},{brick1.BoardY}) to ({originalBrick1X},{originalBrick1Y})");
+            Debug.Log($"Reverting: Brick2 from ({brick2.BoardX},{brick2.BoardY}) to ({originalBrick2X},{originalBrick2Y})");
 
             Board[originalBrick2X, originalBrick2Y] = brick2;
             Board[originalBrick1X, originalBrick1Y] = brick1;
@@ -450,10 +419,12 @@ public class BoardScript : MonoBehaviour
             brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
             brick2.SetBoardPosition(originalBrick2X, originalBrick2Y);
 
+            Debug.Log($"Starting revert animation - Brick1 to {pos1}, Brick2 to {pos2}");
             brick1.MoveTo(pos1, movementDuration);
             brick2.MoveTo(pos2, movementDuration);
 
             yield return new WaitForSeconds(movementDuration);
+            Debug.Log($"Revert animation completed");
 
             ShowNotification("No match created!", 1.5f);
         }

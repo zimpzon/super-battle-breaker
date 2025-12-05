@@ -85,9 +85,18 @@ public class BrickScript : MonoBehaviour
         }
     }
 
-    public void MoveTo(Vector3 worldPosition, float duration = 0.3f)
+    private Coroutine currentMovement;
+
+    public void MoveTo(Vector3 worldPosition, float duration = 0.2f)
     {
-        StartCoroutine(MoveToCo(worldPosition, duration));
+        // Stop any existing movement animation
+        if (currentMovement != null)
+        {
+            StopCoroutine(currentMovement);
+            Debug.Log($"Stopped existing movement for brick at ({BoardX},{BoardY})");
+        }
+
+        currentMovement = StartCoroutine(MoveToCo(worldPosition, duration));
     }
 
     private System.Collections.IEnumerator MoveToCo(Vector3 targetPosition, float duration)
@@ -104,5 +113,6 @@ public class BrickScript : MonoBehaviour
         }
 
         transform.position = targetPosition;
+        currentMovement = null; // Clear reference when animation completes
     }
 }
