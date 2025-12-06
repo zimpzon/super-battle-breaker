@@ -77,8 +77,8 @@ public class BoardScript : MonoBehaviour
 
     #endregion
 
-    private const int W = 8;
-    private const int H = 8;
+    private const int W = 7;
+    private const int H = 7;
     private BrickScript[,] Board = new BrickScript[W, H + 1];
 
     [SerializeField] private float brickSize = 1f;
