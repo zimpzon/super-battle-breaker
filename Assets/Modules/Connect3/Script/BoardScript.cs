@@ -91,6 +91,7 @@ public class BoardScript : MonoBehaviour
     private bool isPlayerTurn = true;
     public bool isProcessingSwap = false;
     public bool isProcessingMatches = false;
+    public bool isProcessingSettlement = false;
     public bool isTestingMoves = false;
     private bool boardInitialized = false;
 
@@ -203,7 +204,7 @@ public class BoardScript : MonoBehaviour
         // Debug key to show current state WITHOUT resetting
         if (Input.GetKeyDown(KeyCode.T))
         {
-            Debug.Log($"STATE CHECK - isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={movingBricks.Count}");
+            Debug.Log($"STATE CHECK - isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, isProcessingSettlement={isProcessingSettlement}, activeMovements={movingBricks.Count}");
         }
     }
 
@@ -479,6 +480,14 @@ public class BoardScript : MonoBehaviour
 
     IEnumerator ClearAndRefillBoardCo()
     {
+        if (isProcessingSettlement)
+        {
+            //Debug.Log("Settlement in progress, skipping board clear");
+            yield break;
+        }
+
+        isProcessingSettlement = true;
+
         // Fire board reset event
         OnBoardReset?.Invoke();
 
@@ -538,6 +547,9 @@ public class BoardScript : MonoBehaviour
         {
             ShowNotification("New board ready!", 2f);
         }
+
+        isProcessingSettlement = false;
+        //Debug.Log("=== BOARD CLEAR/REFILL COMPLETE - SETTLEMENT FLAG CLEARED ===");
     }
 
     public void OnDragSwap(BrickScript sourceBrick, int targetX, int targetY)
@@ -855,12 +867,19 @@ public class BoardScript : MonoBehaviour
         else if (ShouldClearBoard())
         {
             Debug.Log("No current matches and no possible moves - clearing and refilling board");
-            StartCoroutine(ClearAndRefillBoardCo());
+            yield return StartCoroutine(ClearAndRefillBoardCo());
         }
     }
 
     IEnumerator SettleAllColumnsCo()
     {
+        if (isProcessingSettlement)
+        {
+            //Debug.Log("Settlement already in progress, skipping");
+            yield break;
+        }
+
+        isProcessingSettlement = true;
         //Debug.Log("=== STARTING SETTLEMENT ===");
 
         bool anyMovement = true;
@@ -1030,12 +1049,17 @@ public class BoardScript : MonoBehaviour
         else if (ShouldClearBoard())
         {
             Debug.Log("No current matches and no possible moves after settlement - clearing and refilling board");
-            StartCoroutine(ClearAndRefillBoardCo());
+            isProcessingSettlement = false; // Clear flag before calling ClearAndRefillBoardCo
+            yield return StartCoroutine(ClearAndRefillBoardCo());
+            yield break; // Exit early since ClearAndRefillBoardCo will handle its own flag clearing
         }
         else
         {
             //Debug.Log("Settlement complete - no new matches");
         }
+
+        isProcessingSettlement = false;
+        //Debug.Log("=== SETTLEMENT FLAG CLEARED ===");
     }
 
     IEnumerator SettleCo()
@@ -1078,7 +1102,7 @@ public class BoardScript : MonoBehaviour
             else if (ShouldClearBoard())
             {
                 Debug.Log("Initial board has no matches and no possible moves - reshuffling");
-                StartCoroutine(ClearAndRefillBoardCo());
+                yield return StartCoroutine(ClearAndRefillBoardCo());
             }
         }
 
