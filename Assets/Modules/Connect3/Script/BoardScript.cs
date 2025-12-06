@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 [System.Serializable]
 public struct MovingBrick
@@ -26,6 +27,56 @@ public struct MovingBrick
 
 public class BoardScript : MonoBehaviour
 {
+    #region Events
+
+    /// <summary>
+    /// Event fired when a match is found and bricks are removed.
+    /// Parameters: (representativeBrick, matchCount, removedPositions)
+    /// </summary>
+    public static event Action<BrickScript, int, Vector2Int[]> OnMatch;
+
+    /// <summary>
+    /// Event fired when the board is being reset due to no possible moves.
+    /// </summary>
+    public static event Action OnBoardReset;
+
+    /// <summary>
+    /// Event fired when a swap attempt fails (creates no match).
+    /// Parameters: (brick1, brick2, position1, position2)
+    /// </summary>
+    public static event Action<BrickScript, BrickScript, Vector2Int, Vector2Int> OnFailedSwapAttempt;
+
+    /*
+    Example usage:
+
+    void Start()
+    {
+        BoardScript.OnMatch += HandleMatch;
+        BoardScript.OnBoardReset += HandleBoardReset;
+        BoardScript.OnFailedSwapAttempt += HandleFailedSwap;
+    }
+
+    void HandleMatch(BrickScript brick, int count, Vector2Int[] positions)
+    {
+        Debug.Log($"Match of {count} {brick.Type} bricks!");
+        // Play sound effects, update score, etc.
+    }
+
+    void HandleBoardReset()
+    {
+        Debug.Log("Board is being reset!");
+        // Play shuffle animation, update UI, etc.
+    }
+
+    void HandleFailedSwap(BrickScript brick1, BrickScript brick2, Vector2Int pos1, Vector2Int pos2)
+    {
+        Debug.Log($"Failed swap between {brick1.Type} and {brick2.Type}!");
+        // Play negative feedback sound, shake animation, etc.
+    }
+    */
+
+    #endregion
+
     private const int W = 8;
     private const int H = 8;
     private BrickScript[,] Board = new BrickScript[W, H + 1];
@@ -154,16 +205,6 @@ public class BoardScript : MonoBehaviour
         {
             Debug.Log($"STATE CHECK - isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={movingBricks.Count}");
         }
-
-        // Emergency reset key for stuck states (separate key)
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            Debug.Log($"EMERGENCY RESET - WAS: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={movingBricks.Count}");
-            isProcessingSwap = false;
-            isProcessingMatches = false;
-            movingBricks.Clear();
-            Debug.Log($"EMERGENCY RESET - NOW: isProcessingSwap={isProcessingSwap}, isProcessingMatches={isProcessingMatches}, activeMovements={movingBricks.Count}");
-        }
     }
 
     BrickScript SpawnBrick(int x)
@@ -193,7 +234,7 @@ public class BoardScript : MonoBehaviour
                     BrickType.Type1, BrickType.Type2, BrickType.Type3, BrickType.Type4,
                     BrickType.Type5, BrickType.Type6, BrickType.Type7
                 };
-                newBrick.Type = validTypes[Random.Range(0, validTypes.Length)];
+                newBrick.Type = validTypes[UnityEngine.Random.Range(0, validTypes.Length)];
             }
 
             Board[x, 0] = newBrick;
@@ -438,6 +479,9 @@ public class BoardScript : MonoBehaviour
 
     IEnumerator ClearAndRefillBoardCo()
     {
+        // Fire board reset event
+        OnBoardReset?.Invoke();
+
         ShowNotification("No moves available!\nShuffling board...", 3f);
 
         for (int y = 1; y <= H; y++)
@@ -498,48 +542,48 @@ public class BoardScript : MonoBehaviour
 
     public void OnDragSwap(BrickScript sourceBrick, int targetX, int targetY)
     {
-        Debug.Log($"Drag swap requested from ({sourceBrick.BoardX},{sourceBrick.BoardY}) to ({targetX},{targetY})");
-        Debug.Log($"State check - isPlayerTurn: {isPlayerTurn}, isProcessingSwap: {isProcessingSwap}, isProcessingMatches: {isProcessingMatches}");
+        //Debug.Log($"Drag swap requested from ({sourceBrick.BoardX},{sourceBrick.BoardY}) to ({targetX},{targetY})");
+        //Debug.Log($"State check - isPlayerTurn: {isPlayerTurn}, isProcessingSwap: {isProcessingSwap}, isProcessingMatches: {isProcessingMatches}");
 
         if (!isPlayerTurn)
         {
-            Debug.Log("Not player turn - ignoring drag");
+            //Debug.Log("Not player turn - ignoring drag");
             return;
         }
 
         if (isProcessingSwap)
         {
-            Debug.Log("Processing swap - ignoring drag");
+            //Debug.Log("Processing swap - ignoring drag");
             return;
         }
 
         if (isProcessingMatches)
         {
-            Debug.Log("Processing matches - ignoring drag");
+            //Debug.Log("Processing matches - ignoring drag");
             return;
         }
 
         if (sourceBrick == null || !IsValidBrick(sourceBrick))
         {
-            Debug.Log("Source brick is invalid - ignoring drag");
+            //Debug.Log("Source brick is invalid - ignoring drag");
             return;
         }
 
         if (sourceBrick.BoardY == 0)
         {
-            Debug.Log("Dragged from spawn row - ignoring drag");
+            //Debug.Log("Dragged from spawn row - ignoring drag");
             return;
         }
 
         if (HasActiveMovements)
         {
-            Debug.Log("Bricks still moving - ignoring drag");
+            //Debug.Log("Bricks still moving - ignoring drag");
             return;
         }
 
         if (!boardInitialized)
         {
-            Debug.Log("Board not initialized - ignoring drag");
+            //Debug.Log("Board not initialized - ignoring drag");
             return;
         }
 
@@ -556,7 +600,7 @@ public class BoardScript : MonoBehaviour
             return;
         }
 
-        Debug.Log($"Valid drag swap - starting swap between ({sourceBrick.BoardX},{sourceBrick.BoardY}) and ({targetX},{targetY})");
+        //Debug.Log($"Valid drag swap - starting swap between ({sourceBrick.BoardX},{sourceBrick.BoardY}) and ({targetX},{targetY})");
 
         if (selectedBrick != null)
         {
@@ -569,70 +613,70 @@ public class BoardScript : MonoBehaviour
 
     public void OnBrickClicked(BrickScript clickedBrick)
     {
-        Debug.Log($"Brick clicked at ({clickedBrick.BoardX}, {clickedBrick.BoardY})");
+        //Debug.Log($"Brick clicked at ({clickedBrick.BoardX}, {clickedBrick.BoardY})");
 
         if (!isPlayerTurn)
         {
-            Debug.Log("Not player turn - ignoring click");
+            //Debug.Log("Not player turn - ignoring click");
             return;
         }
 
         if (isProcessingSwap)
         {
-            Debug.Log("Processing swap - ignoring click");
+            //Debug.Log("Processing swap - ignoring click");
             return;
         }
 
         if (isProcessingMatches)
         {
-            Debug.Log("Processing matches - ignoring click");
+            //Debug.Log("Processing matches - ignoring click");
             return;
         }
 
         if (HasActiveMovements)
         {
-            Debug.Log("Bricks still moving - ignoring click");
+            //Debug.Log("Bricks still moving - ignoring click");
             return;
         }
 
         if (clickedBrick == null || !IsValidBrick(clickedBrick))
         {
-            Debug.Log("Clicked brick is invalid - ignoring click");
+            //Debug.Log("Clicked brick is invalid - ignoring click");
             return;
         }
 
         if (clickedBrick.BoardY == 0)
         {
-            Debug.Log("Clicked on spawn row - ignoring click");
+            //Debug.Log("Clicked on spawn row - ignoring click");
             return;
         }
 
         if (!boardInitialized)
         {
-            Debug.Log("Board not initialized - ignoring click");
+            //Debug.Log("Board not initialized - ignoring click");
             return;
         }
 
         if (selectedBrick == null)
         {
-            Debug.Log("Selecting first brick");
+            //Debug.Log("Selecting first brick");
             selectedBrick = clickedBrick;
             selectedBrick.SetSelected(true);
         }
         else if (selectedBrick == clickedBrick)
         {
-            Debug.Log("Deselecting brick");
+            //Debug.Log("Deselecting brick");
             selectedBrick.SetSelected(false);
             selectedBrick = null;
         }
         else if (IsAdjacent(selectedBrick, clickedBrick))
         {
-            Debug.Log($"Adjacent bricks - starting swap between ({selectedBrick.BoardX},{selectedBrick.BoardY}) and ({clickedBrick.BoardX},{clickedBrick.BoardY})");
+            //Debug.Log($"Adjacent bricks - starting swap between ({selectedBrick.BoardX},{selectedBrick.BoardY}) and ({clickedBrick.BoardX},{clickedBrick.BoardY})");
             StartCoroutine(SwapBricksCo(selectedBrick, clickedBrick));
         }
         else
         {
-            Debug.Log("Not adjacent - selecting new brick");
+            //Debug.Log("Not adjacent - selecting new brick");
             selectedBrick.SetSelected(false);
             selectedBrick = clickedBrick;
             selectedBrick.SetSelected(true);
@@ -656,7 +700,7 @@ public class BoardScript : MonoBehaviour
 
     IEnumerator SwapBricksCo(BrickScript brick1, BrickScript brick2)
     {
-        Debug.Log("=== STARTING SWAP ===");
+        //Debug.Log("=== STARTING SWAP ===");
         isProcessingSwap = true;
 
         if (selectedBrick != null)
@@ -693,7 +737,12 @@ public class BoardScript : MonoBehaviour
 
         if (matches.Count == 0)
         {
-            Debug.Log($"No matches created - reverting swap");
+            //Debug.Log($"No matches created - reverting swap");
+
+            // Fire failed swap attempt event
+            Vector2Int pos1Vec = new Vector2Int(originalBrick1X, originalBrick1Y);
+            Vector2Int pos2Vec = new Vector2Int(originalBrick2X, originalBrick2Y);
+            OnFailedSwapAttempt?.Invoke(brick1, brick2, pos1Vec, pos2Vec);
 
             SwapBricksInArray(brick1, originalBrick2X, originalBrick2Y, brick2, originalBrick1X, originalBrick1Y);
             brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
@@ -715,7 +764,7 @@ public class BoardScript : MonoBehaviour
         }
         else
         {
-            Debug.Log($"Matches created - processing {matches.Count} matches");
+            //Debug.Log($"Matches created - processing {matches.Count} matches");
 
             if (!isProcessingMatches)
             {
@@ -724,7 +773,7 @@ public class BoardScript : MonoBehaviour
         }
 
         isProcessingSwap = false;
-        Debug.Log("=== SWAP COMPLETE - isProcessingSwap now FALSE ===");
+        //Debug.Log("=== SWAP COMPLETE - isProcessingSwap now FALSE ===");
     }
 
     IEnumerator ProcessMatchesCo()
@@ -744,6 +793,36 @@ public class BoardScript : MonoBehaviour
             if (matches.Count == 0)
             {
                 break;
+            }
+
+            // Fire match events before destroying bricks
+            if (matches.Count > 0)
+            {
+                // Get positions of all matched bricks
+                Vector2Int[] removedPositions = new Vector2Int[matches.Count];
+                for (int i = 0; i < matches.Count; i++)
+                {
+                    if (matches[i] != null)
+                    {
+                        removedPositions[i] = new Vector2Int(matches[i].BoardX, matches[i].BoardY);
+                    }
+                }
+
+                // Fire event for first valid brick (as representative of the match)
+                BrickScript representativeBrick = null;
+                foreach (var match in matches)
+                {
+                    if (match != null && IsValidBrick(match))
+                    {
+                        representativeBrick = match;
+                        break;
+                    }
+                }
+
+                if (representativeBrick != null)
+                {
+                    OnMatch?.Invoke(representativeBrick, matches.Count, removedPositions);
+                }
             }
 
             foreach (BrickScript match in matches)
@@ -770,7 +849,7 @@ public class BoardScript : MonoBehaviour
 
         if (HasCurrentMatches())
         {
-            Debug.Log("Found immediate matches after processing, continuing...");
+            //Debug.Log("Found immediate matches after processing, continuing...");
             StartCoroutine(ProcessMatchesCo());
         }
         else if (ShouldClearBoard())
@@ -782,7 +861,7 @@ public class BoardScript : MonoBehaviour
 
     IEnumerator SettleAllColumnsCo()
     {
-        Debug.Log("=== STARTING SETTLEMENT ===");
+        //Debug.Log("=== STARTING SETTLEMENT ===");
 
         bool anyMovement = true;
         int settlementIterations = 0;
@@ -936,13 +1015,13 @@ public class BoardScript : MonoBehaviour
 
         yield return StartCoroutine(WaitForAllMovements());
 
-        Debug.Log("=== SETTLEMENT COMPLETE - CHECKING FOR MATCHES ===");
+        //Debug.Log("=== SETTLEMENT COMPLETE - CHECKING FOR MATCHES ===");
 
         yield return null;
 
         if (HasCurrentMatches())
         {
-            Debug.Log("Found matches after settlement, processing...");
+            //Debug.Log("Found matches after settlement, processing...");
             if (!isProcessingMatches)
             {
                 StartCoroutine(ProcessMatchesCo());
@@ -955,7 +1034,7 @@ public class BoardScript : MonoBehaviour
         }
         else
         {
-            Debug.Log("Settlement complete - no new matches");
+            //Debug.Log("Settlement complete - no new matches");
         }
     }
 
@@ -990,7 +1069,7 @@ public class BoardScript : MonoBehaviour
 
             if (HasCurrentMatches())
             {
-                Debug.Log("Found matches in initial board, processing...");
+                //Debug.Log("Found matches in initial board, processing...");
                 if (!isProcessingMatches)
                 {
                     StartCoroutine(ProcessMatchesCo());

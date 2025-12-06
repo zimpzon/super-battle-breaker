@@ -87,8 +87,8 @@ public class BrickScript : MonoBehaviour
         hasDragged = false;
 
         // Debug.Log($"=== MOUSE DOWN ===");
-        Debug.Log($"Mouse down on brick at ({BoardX},{BoardY})");
-        Debug.Log($"Mouse down position: {mouseDownPosition}");
+        //Debug.Log($"Mouse down on brick at ({BoardX},{BoardY})");
+        //Debug.Log($"Mouse down position: {mouseDownPosition}");
     }
 
     void OnMouseDrag()
@@ -117,13 +117,13 @@ public class BrickScript : MonoBehaviour
             Vector2 dragDirection = GetDragDirection(dragDelta);
 
             // Debug.Log($"=== DRAG DETECTED ===");
-            Debug.Log($"Drag distance: {dragDistance:F2}, direction: {dragDirection}");
+            //Debug.Log($"Drag distance: {dragDistance:F2}, direction: {dragDirection}");
 
             // Find the adjacent brick in that direction
             int targetX = BoardX + (int)dragDirection.x;
             int targetY = BoardY + (int)dragDirection.y;
 
-            Debug.Log($"Target position: ({targetX},{targetY})");
+            //Debug.Log($"Target position: ({targetX},{targetY})");
 
             // Clear drag highlight
             SetSelected(false);
@@ -150,16 +150,16 @@ public class BrickScript : MonoBehaviour
         {
             // This was a click, not a drag - use original click behavior
             // Debug.Log($"=== CLICK DETECTED ===");
-            Debug.Log($"GameObject: {gameObject.name}");
-            Debug.Log($"BrickType: {Type}");
-            Debug.Log($"Board coords: ({BoardX},{BoardY})");
-            Debug.Log($"World position: {transform.position}");
+            //Debug.Log($"GameObject: {gameObject.name}");
+            //Debug.Log($"BrickType: {Type}");
+            //Debug.Log($"Board coords: ({BoardX},{BoardY})");
+            //Debug.Log($"World position: {transform.position}");
 
             BoardScript.Instance.OnBrickClicked(this);
         }
         else
         {
-            Debug.Log("Drag operation completed");
+            //Debug.Log("Drag operation completed");
         }
 
         // Reset for next interaction
