@@ -98,7 +98,7 @@ public class BoardScript : MonoBehaviour
     public bool isProcessingMatches = false;
     public bool isProcessingSettlement = false;
     public bool isTestingMoves = false;
-    private bool boardInitialized = false;
+    [NonSerialized] public bool boardInitialized = false;
     private bool isBoardFilling = false;
 
     // Movement tracking - simple list-based system
@@ -178,7 +178,7 @@ public class BoardScript : MonoBehaviour
     void Start()
     {
         Instance = this;
-        StartCoroutine(SettleCo());
+        // Don't start settlement until game begins
     }
 
     void Update()

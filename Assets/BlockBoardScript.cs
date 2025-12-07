@@ -21,12 +21,14 @@ public class BlockBoardScript : MonoBehaviour
         // Get Block layer mask
         blockLayerMask = LayerMask.GetMask("Block");
 
-        SpawnRow();
+        // Don't spawn initial row - wait for game to start
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (!GameScript.I.IsPlaying) return;
+
         // Check if any blocks are in the detection rect
         Collider2D hit = Physics2D.OverlapArea(
             new Vector2(detectionRect.xMin, detectionRect.yMin),

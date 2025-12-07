@@ -26,6 +26,7 @@ public class BlockScript : MonoBehaviour
         BallScript ball = collision.gameObject.GetComponent<BallScript>();
         if (ball != null && ball.ballType == BlockType)
         {
+            GameScript.I.AddScore(1);
             Destroy(gameObject);
         }
     }

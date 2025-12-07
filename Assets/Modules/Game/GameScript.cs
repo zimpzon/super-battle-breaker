@@ -14,9 +14,15 @@ public class GameScript : MonoBehaviour
     [SerializeField] private float moveSpeed = 1f;
     [SerializeField] private float ballLaunchHorzVelocityMultiplier = 0.75f;
 
-    public bool IsPlaying = true;
+    public bool IsPlaying => isPlaying;
+
+    bool isPlaying = false; // Start as false for initial start screen
+    bool IsFirstStart = true; // Track if this is the first start
 
     public TMP_Text TextGameOver;
+    public TMP_Text TextScore;
+
+    int score = 0;
 
     private Vector3 startPosition;
     private float timeOffset;
@@ -25,9 +31,16 @@ public class GameScript : MonoBehaviour
     public void GameOver()
     {
         TextGameOver.enabled = true;
-        Time.timeScale = 0.01f;
-        IsPlaying = false;
+        Time.timeScale = 0.00001f;
+        isPlaying = false;
         TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN";
+    }
+
+    void ShowInitialStartScreen()
+    {
+        TextGameOver.enabled = true;
+        TextGameOver.text = "<size=-10>PRESS SPACE TO BEGIN";
+        Time.timeScale = 0.00001f; // Keep normal time scale for input detection
     }
 
     void ClearAll()
@@ -61,10 +74,76 @@ public class GameScript : MonoBehaviour
 
     private void Start()
     {
-        TextGameOver.enabled = false;
         startPosition = BallSpawnPoint.position;
         timeOffset = Random.Range(0f, 2f * Mathf.PI);
         previousSpawnPointPosition = BallSpawnPoint.position;
+
+        // Show initial start screen
+        ShowInitialStartScreen();
+    }
+
+    void Update()
+    {
+        if (!isPlaying && Input.GetKeyDown(KeyCode.Space))
+        {
+            Debug.Log("Space pressed");
+            if (!IsFirstStart)
+            {
+                // First time starting
+                StartNewGame();
+            }
+            else
+            {
+                // Restarting after game over
+                RestartGame();
+            }
+        }
+
+        previousSpawnPointPosition = BallSpawnPoint.position;
+        float oscillation = Mathf.Sin(Time.time * moveSpeed + timeOffset);
+        BallSpawnPoint.position = startPosition + Vector3.right * (oscillation * moveRange);
+    }
+
+    void StartNewGame()
+    {
+        IsFirstStart = false;
+        isPlaying = true;
+        TextGameOver.enabled = false;
+        Time.timeScale = 1f;
+
+        // Reset score
+        score = 0;
+        UpdateScoreText();
+
+        // Start the board settlement
+        BoardScript.Instance.StartCoroutine("SettleCo");
+    }
+
+    void RestartGame()
+    {
+        ClearAll();
+        isPlaying = true;
+        TextGameOver.enabled = false;
+        Time.timeScale = 1f;
+
+        // Reset score
+        score = 0;
+        UpdateScoreText();
+
+        // Reset board state before starting new settlement
+        BoardScript.Instance.boardInitialized = false;
+        BoardScript.Instance.StartCoroutine("SettleCo");
+    }
+
+    void UpdateScoreText()
+    {
+        TextScore.text = $"Score: {score}";
+    }
+
+    public void AddScore(int points)
+    {
+        score += points;
+        UpdateScoreText();
     }
 
     private void OnEnable()
@@ -74,15 +153,6 @@ public class GameScript : MonoBehaviour
         BoardScript.OnFailedSwapAttempt += HandleFailedSwap;
     }
 
-    private void Update()
-    {
-        if (BallSpawnPoint != null)
-        {
-            previousSpawnPointPosition = BallSpawnPoint.position;
-            float oscillation = Mathf.Sin(Time.time * moveSpeed + timeOffset);
-            BallSpawnPoint.position = startPosition + Vector3.right * (oscillation * moveRange);
-        }
-    }
 
     private void OnDisable()
     {
