@@ -6398,7 +6398,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   BallPrefab: {fileID: 6163011148742546221, guid: ecc6fb65ec0079e4a88d154b23790dea, type: 3}
   BallSpawnPoint: {fileID: 1162715092}
-  ballSpacing: 0.2
+  ballSpacing: 0.4
   moveRange: 4
   moveSpeed: 1
   velocityMultiplier: 0.75
