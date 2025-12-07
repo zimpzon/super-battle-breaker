@@ -112,9 +112,13 @@ public class GameScript : MonoBehaviour
             }
         }
 
-        previousSpawnPointPosition = BallSpawnPoint.position;
-        float oscillation = Mathf.Sin(Time.time * moveSpeed + timeOffset);
-        BallSpawnPoint.position = startPosition + Vector3.right * (oscillation * moveRange);
+        // Always move the ball spawner, even during game over screens
+        if (BallSpawnPoint != null)
+        {
+            previousSpawnPointPosition = BallSpawnPoint.position;
+            float oscillation = Mathf.Sin(Time.unscaledTime * moveSpeed + timeOffset);
+            BallSpawnPoint.position = startPosition + Vector3.right * (oscillation * moveRange);
+        }
     }
 
     void StartNewGame()
@@ -248,7 +252,7 @@ public class GameScript : MonoBehaviour
                 adjustedSpawnPos.x = clampedX;
 
                 GameObject ball = Instantiate(BallPrefab, adjustedSpawnPos, Quaternion.identity, parent: transform);
-                ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.5f);
+                ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.8f);
 
                 // Set ball type to match brick type
                 BallScript ballScript = ball.GetComponent<BallScript>();
