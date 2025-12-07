@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 public class BallScript : MonoBehaviour
 {
@@ -18,6 +19,7 @@ public class BallScript : MonoBehaviour
     private Vector2 velocity;
     private float radius;
     private CircleCollider2D circle;
+    private Light2D ballLight;
 
     private int wallMask;
     private int ballMask;

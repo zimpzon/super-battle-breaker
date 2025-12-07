@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 public class GameScript : MonoBehaviour
 {
@@ -83,7 +84,13 @@ public class GameScript : MonoBehaviour
             spawnPos.x = clampedX;
 
             GameObject ball = Instantiate(BallPrefab, spawnPos, Quaternion.identity, parent: transform);
-            ball.GetComponent<SpriteRenderer>().color = representativeBrick.Color;
+            ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.5f);
+
+            // Set light color to match brick color
+            if (ball.TryGetComponent<Light2D>(out var ballLight))
+            {
+                ballLight.color = representativeBrick.Color;
+            }
 
             // Add physics and set velocity
             if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))
