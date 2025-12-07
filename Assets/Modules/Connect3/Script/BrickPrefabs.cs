@@ -18,12 +18,6 @@ public class BrickPrefabs : MonoBehaviour
             return null;
 
         int randomIndex = Random.Range(0, Prefabs.Count);
-
-        const int BallTypeIdx = 0;
-        if (Random.Range(0, 10) == 9)
-            randomIndex = BallTypeIdx;
-
-        // Higher chance for balls
         return Prefabs[randomIndex];
     }
 }

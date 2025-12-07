@@ -49,15 +49,13 @@ public class GameScript : MonoBehaviour
 
     private void HandleMatch(BrickScript representativeBrick, int matchCount, Vector2Int[] removedPositions)
     {
-        Debug.Log($"Match detected! Type: {representativeBrick.Type}, Count: {matchCount}, Positions: {string.Join(", ", removedPositions)}");
-
-        if (BallPrefab != null && BallSpawnPoint != null && removedPositions.Length > 0 && representativeBrick.Type == BrickType.Type6)
+        if (BallPrefab != null && BallSpawnPoint != null && removedPositions.Length > 0)
         {
-            SpawnBallsInPattern(removedPositions);
+            SpawnBallsInPattern(removedPositions, representativeBrick);
         }
     }
 
-    private void SpawnBallsInPattern(Vector2Int[] positions)
+    private void SpawnBallsInPattern(Vector2Int[] positions, BrickScript representativeBrick)
     {
         if (positions.Length == 0) return;
 
@@ -85,6 +83,7 @@ public class GameScript : MonoBehaviour
             spawnPos.x = clampedX;
 
             GameObject ball = Instantiate(BallPrefab, spawnPos, Quaternion.identity, parent: transform);
+            ball.GetComponent<SpriteRenderer>().color = representativeBrick.Color;
 
             // Add physics and set velocity
             if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))

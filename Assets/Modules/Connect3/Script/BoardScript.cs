@@ -31,7 +31,7 @@ public class BoardScript : MonoBehaviour
 
     /// <summary>
     /// Event fired when a match is found and bricks are removed.
-    /// Parameters: (representativeBrick, matchCount, removedPositions)
+    /// Parameters: (representativeBrick, matchCount, removedPositions, isFromBoardFill)
     /// </summary>
     public static event Action<BrickScript, int, Vector2Int[]> OnMatch;
 
@@ -56,9 +56,14 @@ public class BoardScript : MonoBehaviour
         BoardScript.OnFailedSwapAttempt += HandleFailedSwap;
     }
 
-    void HandleMatch(BrickScript brick, int count, Vector2Int[] positions)
+    void HandleMatch(BrickScript brick, int count, Vector2Int[] positions, bool isFromBoardFill)
     {
-        Debug.Log($"Match of {count} {brick.Type} bricks!");
+        if (isFromBoardFill)
+        {
+            Debug.Log($"Match during board fill - ignoring: {count} {brick.Type} bricks!");
+            return; // Ignore matches during board initialization/refill
+        }
+        Debug.Log($"Player-created match: {count} {brick.Type} bricks!");
         // Play sound effects, update score, etc.
     }
 
@@ -77,8 +82,8 @@ public class BoardScript : MonoBehaviour
 
     #endregion
 
-    private const int W = 8;
-    private const int H = 8;
+    private const int W = 7;
+    private const int H = 7;
     private BrickScript[,] Board = new BrickScript[W, H + 1];
 
     [SerializeField] private float brickSize = 1f;
@@ -94,6 +99,7 @@ public class BoardScript : MonoBehaviour
     public bool isProcessingSettlement = false;
     public bool isTestingMoves = false;
     private bool boardInitialized = false;
+    private bool isBoardFilling = false;
 
     // Movement tracking - simple list-based system
     private List<MovingBrick> movingBricks = new List<MovingBrick>();
@@ -487,6 +493,7 @@ public class BoardScript : MonoBehaviour
         }
 
         isProcessingSettlement = true;
+        isBoardFilling = true;
 
         // Fire board reset event
         OnBoardReset?.Invoke();
@@ -549,6 +556,7 @@ public class BoardScript : MonoBehaviour
         }
 
         isProcessingSettlement = false;
+        isBoardFilling = false;
         //Debug.Log("=== BOARD CLEAR/REFILL COMPLETE - SETTLEMENT FLAG CLEARED ===");
     }
 
@@ -1067,6 +1075,7 @@ public class BoardScript : MonoBehaviour
         if (!boardInitialized)
         {
             Debug.Log("Initializing board...");
+            isBoardFilling = true;
 
             for (int x = 0; x < W; x++)
             {
@@ -1104,6 +1113,8 @@ public class BoardScript : MonoBehaviour
                 Debug.Log("Initial board has no matches and no possible moves - reshuffling");
                 yield return StartCoroutine(ClearAndRefillBoardCo());
             }
+
+            isBoardFilling = false;
         }
 
         while (true)

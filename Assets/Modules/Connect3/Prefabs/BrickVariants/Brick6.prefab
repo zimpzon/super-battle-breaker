@@ -70,7 +70,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8103141755785845277, guid: 6fb8102db410a5c4186f5644064c1155, type: 3}
       propertyPath: Type
-      value: 7
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 8103141755785845277, guid: 6fb8102db410a5c4186f5644064c1155, type: 3}
       propertyPath: Color.a
