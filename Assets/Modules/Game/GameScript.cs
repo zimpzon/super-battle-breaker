@@ -32,6 +32,7 @@ public class GameScript : MonoBehaviour
     public AudioClip music;
 
     int score = 0;
+    int bestScore = 0;
 
     private Vector3 startPosition;
     private float timeOffset;
@@ -42,7 +43,7 @@ public class GameScript : MonoBehaviour
         TextGameOver.enabled = true;
         Time.timeScale = 0.00001f;
         isPlaying = false;
-        TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN\n\n<size=-60>Write your best score in the comments!";
+        TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN\n\n<size=-25>Write your best score in the comments!";
 
         // Play game over sound
         if (audioSource != null && soundGameOver != null)
@@ -50,14 +51,22 @@ public class GameScript : MonoBehaviour
             audioSource.PlayOneShot(soundGameOver);
         }
 
-        var stats = new Dictionary<string, int> { { "score", score } };
+        // Update best score if needed
+        if (score > bestScore)
+        {
+            bestScore = score;
+            PlayerPrefs.SetInt("BestScore", bestScore);
+            PlayerPrefs.Save();
+        }
+
+        var stats = new Dictionary<string, int> { { "score", score }, { "best_score", bestScore } };
         Playfab.PlayerStat(stats);
     }
 
     void ShowInitialStartScreen()
     {
         TextGameOver.enabled = true;
-        TextGameOver.text = "<size=-10>PRESS SPACE TO BEGIN\n\n<size=-60>Write your best score in the comments!";
+        TextGameOver.text = "<size=-10>PRESS SPACE TO BEGIN\n\n<size=-25>Write your best score in the comments!";
         Time.timeScale = 0.00001f; // Keep normal time scale for input detection
     }
 
@@ -96,6 +105,9 @@ public class GameScript : MonoBehaviour
         audioSource.clip = music;
         audioSource.loop = true;
         audioSource.Play();
+
+        // Load best score from PlayerPrefs
+        bestScore = PlayerPrefs.GetInt("BestScore", 0);
 
         startPosition = BallSpawnPoint.position;
         timeOffset = Random.Range(0f, 2f * Mathf.PI);
