@@ -27,6 +27,7 @@ public class GameScript : MonoBehaviour
     public AudioClip soundMatch3;
     public AudioClip soundMatchBig;
     public AudioClip soundBlockPop;
+    public AudioClip soundGameOver;
 
     int score = 0;
 
@@ -40,6 +41,12 @@ public class GameScript : MonoBehaviour
         Time.timeScale = 0.00001f;
         isPlaying = false;
         TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN";
+
+        // Play game over sound
+        if (audioSource != null && soundGameOver != null)
+        {
+            audioSource.PlayOneShot(soundGameOver);
+        }
     }
 
     void ShowInitialStartScreen()

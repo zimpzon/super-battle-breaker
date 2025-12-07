@@ -6518,6 +6518,7 @@ MonoBehaviour:
   soundMatch3: {fileID: 8300000, guid: 7a52ff5a3a946f74eb3762bc74142398, type: 3}
   soundMatchBig: {fileID: 8300000, guid: c15bf19987bdd0140ad7cad700125898, type: 3}
   soundBlockPop: {fileID: 8300000, guid: bcf64bc5b44571849bb37634b9c88d6a, type: 3}
+  soundGameOver: {fileID: 8300000, guid: 5179097d4caa14b47b7ef5e8388fd151, type: 3}
 --- !u!82 &1434075306
 AudioSource:
   m_ObjectHideFlags: 0
@@ -7310,8 +7311,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 40
-  m_fontSizeBase: 40
+  m_fontSize: 50
+  m_fontSizeBase: 50
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
