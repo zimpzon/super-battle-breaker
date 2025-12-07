@@ -40,7 +40,7 @@ public class GameScript : MonoBehaviour
         TextGameOver.enabled = true;
         Time.timeScale = 0.00001f;
         isPlaying = false;
-        TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN";
+        TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN\n\n<size=-60>Write your best score in the comments!";
 
         // Play game over sound
         if (audioSource != null && soundGameOver != null)
@@ -52,7 +52,7 @@ public class GameScript : MonoBehaviour
     void ShowInitialStartScreen()
     {
         TextGameOver.enabled = true;
-        TextGameOver.text = "<size=-10>PRESS SPACE TO BEGIN";
+        TextGameOver.text = "<size=-10>PRESS SPACE TO BEGIN\n\n<size=-60>Write your best score in the comments!";
         Time.timeScale = 0.00001f; // Keep normal time scale for input detection
     }
 
