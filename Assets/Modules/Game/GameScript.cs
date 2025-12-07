@@ -104,6 +104,7 @@ public class GameScript : MonoBehaviour
     {
         audioSource.clip = music;
         audioSource.loop = true;
+        audioSource.volume = 0.5f;
         audioSource.Play();
 
         // Load best score from PlayerPrefs
