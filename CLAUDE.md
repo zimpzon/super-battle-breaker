@@ -54,3 +54,4 @@ Assets/
 - Input system configured via `InputSystem_Actions.inputactions`
 - No package.json - dependencies managed through Unity Package Manager
 - Build outputs go to platform-specific folders (not tracked in git)
+- do not do defensive coding. If ex a SpriteRenderer is missing I want a crash, not ignoring the error.

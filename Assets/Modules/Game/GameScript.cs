@@ -1,27 +1,70 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
 public class GameScript : MonoBehaviour
 {
+    public static GameScript I;
+
     public GameObject BallPrefab;
+
     public Transform BallSpawnPoint;
     [SerializeField] private float ballSpacing = 0.1f;
     [SerializeField] private float moveRange = 4f;
     [SerializeField] private float moveSpeed = 1f;
-    [SerializeField] private float velocityMultiplier = 0.75f;
+    [SerializeField] private float ballLaunchHorzVelocityMultiplier = 0.75f;
+
+    public bool IsPlaying = true;
+
+    public TMP_Text TextGameOver;
 
     private Vector3 startPosition;
     private float timeOffset;
     private Vector3 previousSpawnPointPosition;
 
+    public void GameOver()
+    {
+        TextGameOver.enabled = true;
+        Time.timeScale = 0.01f;
+        IsPlaying = false;
+        TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN";
+    }
+
+    void ClearAll()
+    {
+        // Clear all balls
+        BallScript[] balls = FindObjectsOfType<BallScript>();
+        foreach (BallScript ball in balls)
+        {
+            Destroy(ball.gameObject);
+        }
+
+        // Clear all bricks
+        BrickScript[] bricks = FindObjectsOfType<BrickScript>();
+        foreach (BrickScript brick in bricks)
+        {
+            Destroy(brick.gameObject);
+        }
+
+        // Clear all blocks
+        BlockScript[] blocks = FindObjectsOfType<BlockScript>();
+        foreach (BlockScript block in blocks)
+        {
+            Destroy(block.gameObject);
+        }
+    }
+
+    private void Awake()
+    {
+        I = this;
+    }
+
     private void Start()
     {
-        if (BallSpawnPoint != null)
-        {
-            startPosition = BallSpawnPoint.position;
-            timeOffset = Random.Range(0f, 2f * Mathf.PI);
-            previousSpawnPointPosition = BallSpawnPoint.position;
-        }
+        TextGameOver.enabled = false;
+        startPosition = BallSpawnPoint.position;
+        timeOffset = Random.Range(0f, 2f * Mathf.PI);
+        previousSpawnPointPosition = BallSpawnPoint.position;
     }
 
     private void OnEnable()
@@ -86,18 +129,25 @@ public class GameScript : MonoBehaviour
             GameObject ball = Instantiate(BallPrefab, spawnPos, Quaternion.identity, parent: transform);
             ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.5f);
 
+            // Set ball type to match brick type
+            BallScript ballScript = ball.GetComponent<BallScript>();
+            ballScript.ballType = representativeBrick.Type;
+
             // Set light color to match brick color
             if (ball.TryGetComponent<Light2D>(out var ballLight))
             {
                 ballLight.color = representativeBrick.Color;
             }
 
+            // Destroy ball after 5 seconds
+            Destroy(ball, 5f);
+
             // Add physics and set velocity
             if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))
             {
                 // Calculate spawn point's current velocity using derivative of sin function
                 float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                float horizontalVelocity = currentVelocity * velocityMultiplier;
+                float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
 
                 rb2d.linearVelocity = new Vector2(horizontalVelocity, 0f);
             }
@@ -105,7 +155,7 @@ public class GameScript : MonoBehaviour
             {
                 // Calculate spawn point's current velocity using derivative of sin function
                 float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                float horizontalVelocity = currentVelocity * velocityMultiplier;
+                float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
 
                 rb3d.linearVelocity = new Vector3(horizontalVelocity, 0f, 0f);
             }

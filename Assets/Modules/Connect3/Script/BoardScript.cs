@@ -852,13 +852,11 @@ public class BoardScript : MonoBehaviour
                     match.BoardY >= 0 && match.BoardY <= H)
                 {
                     Board[match.BoardX, match.BoardY] = null;
-                    Destroy(match.gameObject);
+                    match.StartScaleDestruction(0.3f);
                 }
             }
 
             CleanupNullBricks();
-
-            yield return new WaitForSeconds(0.1f);
 
             yield return StartCoroutine(SettleAllColumnsCo());
         }

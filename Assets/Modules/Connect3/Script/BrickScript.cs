@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
+using System.Collections;
 
 public class BrickScript : MonoBehaviour
 {
@@ -13,6 +15,7 @@ public class BrickScript : MonoBehaviour
     private bool isSelected = false;
     private Color originalColor;
     private SpriteRenderer spriteRenderer;
+    private bool isBeingDestroyed = false;
 
     void Start()
     {
@@ -20,6 +23,7 @@ public class BrickScript : MonoBehaviour
         if (spriteRenderer != null && Color == default(Color))
         {
             Color = spriteRenderer.color;
+            GetComponent<Light2D>().color = Color;
         }
         originalColor = Color;
         UpdateSpriteColor();
@@ -197,5 +201,42 @@ public class BrickScript : MonoBehaviour
         {
             BoardScript.Instance.AddMovingBrick(this, worldPosition, duration);
         }
+    }
+
+    public void StartScaleDestruction(float duration = 0.3f)
+    {
+        if (isBeingDestroyed) return;
+
+        isBeingDestroyed = true;
+
+        // Set sorting order behind other bricks
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.sortingOrder = -10;
+        }
+
+        StartCoroutine(ScaleDestructionCoroutine(duration));
+    }
+
+    private IEnumerator ScaleDestructionCoroutine(float duration)
+    {
+        Vector3 originalScale = transform.localScale;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            float progress = elapsedTime / duration;
+            float scale = Mathf.Lerp(1f, 0f, progress);
+            transform.localScale = originalScale * scale;
+
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+
+        // Ensure final scale is exactly zero
+        transform.localScale = Vector3.zero;
+
+        // Destroy the object
+        Destroy(gameObject);
     }
 }

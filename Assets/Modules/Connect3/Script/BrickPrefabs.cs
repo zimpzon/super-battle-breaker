@@ -17,7 +17,7 @@ public class BrickPrefabs : MonoBehaviour
         if (Prefabs == null || Prefabs.Count == 0)
             return null;
 
-        int randomIndex = Random.Range(0, Prefabs.Count);
+        int randomIndex = Random.Range(1, Prefabs.Count); // from 1, so first one skipped
         return Prefabs[randomIndex];
     }
 }
