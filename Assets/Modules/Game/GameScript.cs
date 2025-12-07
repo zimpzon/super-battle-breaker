@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -47,6 +48,9 @@ public class GameScript : MonoBehaviour
         {
             audioSource.PlayOneShot(soundGameOver);
         }
+
+        var stats = new Dictionary<string, int> { { "score", score } };
+        Playfab.PlayerStat(stats);
     }
 
     void ShowInitialStartScreen()
@@ -83,6 +87,7 @@ public class GameScript : MonoBehaviour
     private void Awake()
     {
         I = this;
+        Playfab.Login();
     }
 
     private void Start()
@@ -115,7 +120,6 @@ public class GameScript : MonoBehaviour
         // Always move the ball spawner, even during game over screens
         if (BallSpawnPoint != null)
         {
-            previousSpawnPointPosition = BallSpawnPoint.position;
             float oscillation = Mathf.Sin(Time.unscaledTime * moveSpeed + timeOffset);
             BallSpawnPoint.position = startPosition + Vector3.right * (oscillation * moveRange);
         }
@@ -252,7 +256,7 @@ public class GameScript : MonoBehaviour
                 adjustedSpawnPos.x = clampedX;
 
                 GameObject ball = Instantiate(BallPrefab, adjustedSpawnPos, Quaternion.identity, parent: transform);
-                ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.8f);
+                ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.2f);
 
                 // Set ball type to match brick type
                 BallScript ballScript = ball.GetComponent<BallScript>();
@@ -270,19 +274,19 @@ public class GameScript : MonoBehaviour
                 // Add physics and set velocity
                 if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))
                 {
-                    // Calculate spawn point's current velocity using derivative of sin function
-                    float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                    float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
+                    // Calculate instantaneous velocity from movement equation
+                    float currentVelocity = Mathf.Cos(Time.unscaledTime * moveSpeed + timeOffset) * moveSpeed * moveRange;
+                    Vector2 ballVelocity = new Vector2(currentVelocity * ballLaunchHorzVelocityMultiplier, 0f);
 
-                    rb2d.linearVelocity = new Vector2(horizontalVelocity, 0f);
+                    rb2d.linearVelocity = ballVelocity;
                 }
                 else if (ball.TryGetComponent<Rigidbody>(out var rb3d))
                 {
-                    // Calculate spawn point's current velocity using derivative of sin function
-                    float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                    float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
+                    // Calculate instantaneous velocity from movement equation
+                    float currentVelocity = Mathf.Cos(Time.unscaledTime * moveSpeed + timeOffset) * moveSpeed * moveRange;
+                    Vector3 ballVelocity = new Vector3(currentVelocity * ballLaunchHorzVelocityMultiplier, 0f, 0f);
 
-                    rb3d.linearVelocity = new Vector3(horizontalVelocity, 0f, 0f);
+                    rb3d.linearVelocity = ballVelocity;
                 }
             }
         }
