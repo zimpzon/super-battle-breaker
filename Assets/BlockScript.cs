@@ -28,7 +28,34 @@ public class BlockScript : MonoBehaviour
         {
             GameScript.I.AddScore(1);
             GameScript.I.PlayBlockPopSound();
-            Destroy(gameObject);
+            StartScaleDestruction(0.3f);
         }
+    }
+
+    public void StartScaleDestruction(float duration = 0.3f)
+    {
+        StartCoroutine(ScaleDestructionCoroutine(duration));
+    }
+
+    private System.Collections.IEnumerator ScaleDestructionCoroutine(float duration)
+    {
+        Vector3 originalScale = transform.localScale;
+        float elapsedTime = 0f;
+
+        while (elapsedTime < duration)
+        {
+            float progress = elapsedTime / duration;
+            float scale = Mathf.Lerp(1f, 0f, progress);
+            transform.localScale = originalScale * scale;
+
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+
+        // Ensure final scale is exactly zero
+        transform.localScale = Vector3.zero;
+
+        // Destroy the object
+        Destroy(gameObject);
     }
 }
