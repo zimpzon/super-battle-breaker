@@ -173,6 +173,17 @@ public class GameScript : MonoBehaviour
     {
         if (positions.Length == 0) return;
 
+        // Determine how many balls to spawn per position based on match count
+        int ballsPerPosition = 1;
+        if (positions.Length >= 5)
+        {
+            ballsPerPosition = 3;
+        }
+        else if (positions.Length >= 4)
+        {
+            ballsPerPosition = 2;
+        }
+
         // Find the center of the matched pattern
         Vector2 center = Vector2.zero;
         foreach (var pos in positions)
@@ -192,49 +203,49 @@ public class GameScript : MonoBehaviour
             // Apply spacing and spawn at BallSpawnPoint + offset
             Vector3 spawnPos = basePosition + new Vector3(offset.x * ballSpacing, offset.y * ballSpacing, 0);
 
-            // Clamp spawn position to stay within the movement range (4 units left/right of start)
-            float clampedX = Mathf.Clamp(spawnPos.x, startPosition.x - moveRange, startPosition.x + moveRange);
-            spawnPos.x = clampedX;
-
-            GameObject ball = Instantiate(BallPrefab, spawnPos, Quaternion.identity, parent: transform);
-            ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.5f);
-
-            // Set ball type to match brick type
-            BallScript ballScript = ball.GetComponent<BallScript>();
-            ballScript.ballType = representativeBrick.Type;
-
-            // Set light color to match brick color
-            if (ball.TryGetComponent<Light2D>(out var ballLight))
+            // Spawn multiple balls with slight X offset
+            for (int i = 0; i < ballsPerPosition; i++)
             {
-                ballLight.color = representativeBrick.Color;
-            }
+                // Adjust X position by 0.05 per ball
+                Vector3 adjustedSpawnPos = spawnPos + new Vector3(i * 0.2f, 0, 0);
 
-            // Destroy ball after 5 seconds
-            Destroy(ball, 5f);
+                // Clamp spawn position to stay within the movement range (4 units left/right of start)
+                float clampedX = Mathf.Clamp(adjustedSpawnPos.x, startPosition.x - moveRange, startPosition.x + moveRange);
+                adjustedSpawnPos.x = clampedX;
 
-            // Add physics and set velocity
-            if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))
-            {
-                // Calculate spawn point's current velocity using derivative of sin function
-                float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
+                GameObject ball = Instantiate(BallPrefab, adjustedSpawnPos, Quaternion.identity, parent: transform);
+                ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.5f);
 
-                rb2d.linearVelocity = new Vector2(horizontalVelocity, 0f);
-            }
-            else if (ball.TryGetComponent<Rigidbody>(out var rb3d))
-            {
-                // Calculate spawn point's current velocity using derivative of sin function
-                float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
+                // Set ball type to match brick type
+                BallScript ballScript = ball.GetComponent<BallScript>();
+                ballScript.ballType = representativeBrick.Type;
 
-                rb3d.linearVelocity = new Vector3(horizontalVelocity, 0f, 0f);
-            }
+                // Set light color to match brick color
+                if (ball.TryGetComponent<Light2D>(out var ballLight))
+                {
+                    ballLight.color = representativeBrick.Color;
+                }
 
-            // Optional: set ball color to match the brick that was matched
-            if (ball.TryGetComponent<Renderer>(out var renderer))
-            {
-                // You can access the representative brick's color if needed
-                // renderer.material.color = representativeBrick.Color;
+                // Destroy ball after X seconds
+                Destroy(ball, 10f);
+
+                // Add physics and set velocity
+                if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))
+                {
+                    // Calculate spawn point's current velocity using derivative of sin function
+                    float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
+                    float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
+
+                    rb2d.linearVelocity = new Vector2(horizontalVelocity, 0f);
+                }
+                else if (ball.TryGetComponent<Rigidbody>(out var rb3d))
+                {
+                    // Calculate spawn point's current velocity using derivative of sin function
+                    float currentVelocity = Mathf.Cos(Time.time * moveSpeed + timeOffset) * moveSpeed * moveRange;
+                    float horizontalVelocity = currentVelocity * ballLaunchHorzVelocityMultiplier;
+
+                    rb3d.linearVelocity = new Vector3(horizontalVelocity, 0f, 0f);
+                }
             }
         }
     }

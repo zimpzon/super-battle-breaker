@@ -6512,7 +6512,7 @@ MonoBehaviour:
   moveSpeed: 1
   ballLaunchHorzVelocityMultiplier: 0.75
   TextGameOver: {fileID: 1812816153}
-  TextScore: {fileID: 0}
+  TextScore: {fileID: 1659405418}
 --- !u!1 &1573642010
 GameObject:
   m_ObjectHideFlags: 0
@@ -7208,8 +7208,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 64
-  m_fontSizeBase: 64
+  m_fontSize: 40
+  m_fontSizeBase: 40
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
