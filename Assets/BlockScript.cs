@@ -27,6 +27,7 @@ public class BlockScript : MonoBehaviour
         if (ball != null && ball.ballType == BlockType)
         {
             GameScript.I.AddScore(1);
+            GameScript.I.PlayBlockPopSound();
             Destroy(gameObject);
         }
     }

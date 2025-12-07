@@ -22,6 +22,12 @@ public class GameScript : MonoBehaviour
     public TMP_Text TextGameOver;
     public TMP_Text TextScore;
 
+    [Header("Sound Effects")]
+    public AudioSource audioSource;
+    public AudioClip soundMatch3;
+    public AudioClip soundMatchBig;
+    public AudioClip soundBlockPop;
+
     int score = 0;
 
     private Vector3 startPosition;
@@ -146,6 +152,14 @@ public class GameScript : MonoBehaviour
         UpdateScoreText();
     }
 
+    public void PlayBlockPopSound()
+    {
+        if (audioSource != null && soundBlockPop != null)
+        {
+            audioSource.PlayOneShot(soundBlockPop);
+        }
+    }
+
     private void OnEnable()
     {
         BoardScript.OnMatch += HandleMatch;
@@ -163,6 +177,19 @@ public class GameScript : MonoBehaviour
 
     private void HandleMatch(BrickScript representativeBrick, int matchCount, Vector2Int[] removedPositions)
     {
+        // Play match sound
+        if (audioSource != null)
+        {
+            if (matchCount == 3 && soundMatch3 != null)
+            {
+                audioSource.PlayOneShot(soundMatch3);
+            }
+            else if (matchCount > 3 && soundMatchBig != null)
+            {
+                audioSource.PlayOneShot(soundMatchBig);
+            }
+        }
+
         if (BallPrefab != null && BallSpawnPoint != null && removedPositions.Length > 0)
         {
             SpawnBallsInPattern(removedPositions, representativeBrick);
