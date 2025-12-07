@@ -295,7 +295,7 @@ MonoBehaviour:
   active: 1
   distance:
     m_OverrideState: 1
-    m_Value: 0.067
+    m_Value: 0
   cropToFit:
     m_OverrideState: 1
     m_Value: 0

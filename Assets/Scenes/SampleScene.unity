@@ -6367,6 +6367,7 @@ MonoBehaviour:
   soundMatchBig: {fileID: 8300000, guid: c15bf19987bdd0140ad7cad700125898, type: 3}
   soundBlockPop: {fileID: 8300000, guid: bcf64bc5b44571849bb37634b9c88d6a, type: 3}
   soundGameOver: {fileID: 8300000, guid: 5179097d4caa14b47b7ef5e8388fd151, type: 3}
+  music: {fileID: 8300000, guid: 985a3e9c10e86b941a4d12df49ca7c12, type: 3}
 --- !u!82 &1434075306
 AudioSource:
   m_ObjectHideFlags: 0

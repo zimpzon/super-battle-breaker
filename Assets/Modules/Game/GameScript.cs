@@ -29,6 +29,7 @@ public class GameScript : MonoBehaviour
     public AudioClip soundMatchBig;
     public AudioClip soundBlockPop;
     public AudioClip soundGameOver;
+    public AudioClip music;
 
     int score = 0;
 
@@ -92,6 +93,10 @@ public class GameScript : MonoBehaviour
 
     private void Start()
     {
+        audioSource.clip = music;
+        audioSource.loop = true;
+        audioSource.Play();
+
         startPosition = BallSpawnPoint.position;
         timeOffset = Random.Range(0f, 2f * Mathf.PI);
         previousSpawnPointPosition = BallSpawnPoint.position;
