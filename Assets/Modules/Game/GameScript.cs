@@ -273,7 +273,8 @@ public class GameScript : MonoBehaviour
                 adjustedSpawnPos.x = clampedX;
 
                 GameObject ball = Instantiate(BallPrefab, adjustedSpawnPos, Quaternion.identity, parent: transform);
-                ball.GetComponent<SpriteRenderer>().color = Color.Lerp(representativeBrick.Color, Color.black, 0.2f);
+                Color ballColor = Color.Lerp(representativeBrick.Color, Color.black, 0.2f);
+                ball.GetComponent<SpriteRenderer>().color = ballColor;
 
                 // Set ball type to match brick type
                 BallScript ballScript = ball.GetComponent<BallScript>();
@@ -283,6 +284,14 @@ public class GameScript : MonoBehaviour
                 if (ball.TryGetComponent<Light2D>(out var ballLight))
                 {
                     ballLight.color = representativeBrick.Color;
+                }
+
+                // Set trail renderer color darker than ball color
+                if (ball.TryGetComponent<TrailRenderer>(out var trailRenderer))
+                {
+                    Color trailColor = Color.Lerp(ballColor, Color.black, 0.5f);
+                    trailRenderer.startColor = trailColor;
+                    trailRenderer.endColor = trailColor;
                 }
 
                 // Destroy ball after X seconds
