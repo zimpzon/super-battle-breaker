@@ -37,6 +37,7 @@ public class GameScript : MonoBehaviour
     private Vector3 startPosition;
     private float timeOffset;
     private Vector3 previousSpawnPointPosition;
+    private BlockBoardScript blockBoard;
 
     public void GameOver()
     {
@@ -114,6 +115,9 @@ public class GameScript : MonoBehaviour
         timeOffset = Random.Range(0f, 2f * Mathf.PI);
         previousSpawnPointPosition = BallSpawnPoint.position;
 
+        // Find BlockBoardScript
+        blockBoard = FindObjectOfType<BlockBoardScript>();
+
         // Show initial start screen
         ShowInitialStartScreen();
     }
@@ -154,6 +158,12 @@ public class GameScript : MonoBehaviour
         score = 0;
         UpdateScoreText();
 
+        // Reset block advancement
+        if (blockBoard != null)
+        {
+            blockBoard.ResetAdvancement();
+        }
+
         // Start the board settlement
         BoardScript.Instance.StartCoroutine("SettleCo");
     }
@@ -168,6 +178,12 @@ public class GameScript : MonoBehaviour
         // Reset score
         score = 0;
         UpdateScoreText();
+
+        // Reset block advancement
+        if (blockBoard != null)
+        {
+            blockBoard.ResetAdvancement();
+        }
 
         // Reset board state before starting new settlement
         BoardScript.Instance.boardInitialized = false;
@@ -208,7 +224,7 @@ public class GameScript : MonoBehaviour
         BoardScript.OnFailedSwapAttempt -= HandleFailedSwap;
     }
 
-    private void HandleMatch(BrickScript representativeBrick, int matchCount, Vector2Int[] removedPositions)
+    private void HandleMatch(BrickScript representativeBrick, int matchCount, Vector2Int[] removedPositions, bool isPlayerInitiated)
     {
         // Play match sound
         if (audioSource != null)
@@ -226,6 +242,20 @@ public class GameScript : MonoBehaviour
         if (BallPrefab != null && BallSpawnPoint != null && removedPositions.Length > 0)
         {
             SpawnBallsInPattern(removedPositions, representativeBrick);
+        }
+
+        // Only trigger block advancement for player-initiated matches
+        if (isPlayerInitiated)
+        {
+            TriggerBlockAdvancement();
+        }
+    }
+
+    private void TriggerBlockAdvancement()
+    {
+        if (blockBoard != null)
+        {
+            blockBoard.AdvanceBlocks();
         }
     }
 

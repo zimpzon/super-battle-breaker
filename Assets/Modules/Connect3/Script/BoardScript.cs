@@ -31,9 +31,9 @@ public class BoardScript : MonoBehaviour
 
     /// <summary>
     /// Event fired when a match is found and bricks are removed.
-    /// Parameters: (representativeBrick, matchCount, removedPositions, isFromBoardFill)
+    /// Parameters: (representativeBrick, matchCount, removedPositions, isPlayerInitiated)
     /// </summary>
-    public static event Action<BrickScript, int, Vector2Int[]> OnMatch;
+    public static event Action<BrickScript, int, Vector2Int[], bool> OnMatch;
 
     /// <summary>
     /// Event fired when the board is being reset due to no possible moves.
@@ -56,9 +56,9 @@ public class BoardScript : MonoBehaviour
         BoardScript.OnFailedSwapAttempt += HandleFailedSwap;
     }
 
-    void HandleMatch(BrickScript brick, int count, Vector2Int[] positions, bool isFromBoardFill)
+    void HandleMatch(BrickScript brick, int count, Vector2Int[] positions, bool isPlayerInitiated)
     {
-        if (isFromBoardFill)
+        if (!isPlayerInitiated)
         {
             Debug.Log($"Match during board fill - ignoring: {count} {brick.Type} bricks!");
             return; // Ignore matches during board initialization/refill
@@ -547,7 +547,7 @@ public class BoardScript : MonoBehaviour
         {
             if (!isProcessingMatches)
             {
-                StartCoroutine(ProcessMatchesCo());
+                StartCoroutine(ProcessMatchesCo(false));
             }
         }
         else
@@ -788,7 +788,7 @@ public class BoardScript : MonoBehaviour
 
             if (!isProcessingMatches)
             {
-                StartCoroutine(ProcessMatchesCo());
+                StartCoroutine(ProcessMatchesCo(true));
             }
         }
 
@@ -796,7 +796,7 @@ public class BoardScript : MonoBehaviour
         //Debug.Log("=== SWAP COMPLETE - isProcessingSwap now FALSE ===");
     }
 
-    IEnumerator ProcessMatchesCo()
+    IEnumerator ProcessMatchesCo(bool isPlayerInitiated = false)
     {
         if (isProcessingMatches)
         {
@@ -805,6 +805,7 @@ public class BoardScript : MonoBehaviour
         }
 
         isProcessingMatches = true;
+        bool firstMatch = true;
 
         while (true)
         {
@@ -841,7 +842,8 @@ public class BoardScript : MonoBehaviour
 
                 if (representativeBrick != null)
                 {
-                    OnMatch?.Invoke(representativeBrick, matches.Count, removedPositions);
+                    bool isThisMatchPlayerInitiated = isPlayerInitiated && firstMatch;
+                    OnMatch?.Invoke(representativeBrick, matches.Count, removedPositions, isThisMatchPlayerInitiated);
                 }
             }
 
@@ -858,6 +860,8 @@ public class BoardScript : MonoBehaviour
 
             CleanupNullBricks();
 
+            firstMatch = false;
+
             yield return StartCoroutine(SettleAllColumnsCo());
         }
 
@@ -868,7 +872,7 @@ public class BoardScript : MonoBehaviour
         if (HasCurrentMatches())
         {
             //Debug.Log("Found immediate matches after processing, continuing...");
-            StartCoroutine(ProcessMatchesCo());
+            StartCoroutine(ProcessMatchesCo(false));
         }
         else if (ShouldClearBoard())
         {
@@ -1049,7 +1053,7 @@ public class BoardScript : MonoBehaviour
             //Debug.Log("Found matches after settlement, processing...");
             if (!isProcessingMatches)
             {
-                StartCoroutine(ProcessMatchesCo());
+                StartCoroutine(ProcessMatchesCo(false));
             }
         }
         else if (ShouldClearBoard())
@@ -1103,7 +1107,7 @@ public class BoardScript : MonoBehaviour
                 //Debug.Log("Found matches in initial board, processing...");
                 if (!isProcessingMatches)
                 {
-                    StartCoroutine(ProcessMatchesCo());
+                    StartCoroutine(ProcessMatchesCo(false));
                 }
             }
             else if (ShouldClearBoard())
