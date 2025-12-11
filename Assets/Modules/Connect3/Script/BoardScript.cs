@@ -31,9 +31,9 @@ public class BoardScript : MonoBehaviour
 
     /// <summary>
     /// Event fired when a match is found and bricks are removed.
-    /// Parameters: (representativeBrick, matchCount, removedPositions, isPlayerInitiated)
+    /// Parameters: (representativeBrick, matchCount, removedPositions, isPlayerInitiated, groupIndex)
     /// </summary>
-    public static event Action<BrickScript, int, Vector2Int[], bool> OnMatch;
+    public static event Action<BrickScript, int, Vector2Int[], bool, int> OnMatch;
 
     /// <summary>
     /// Event fired when the board is being reset due to no possible moves.
@@ -56,7 +56,7 @@ public class BoardScript : MonoBehaviour
         BoardScript.OnFailedSwapAttempt += HandleFailedSwap;
     }
 
-    void HandleMatch(BrickScript brick, int count, Vector2Int[] positions, bool isPlayerInitiated)
+    void HandleMatch(BrickScript brick, int count, Vector2Int[] positions, bool isPlayerInitiated, int groupIndex)
     {
         if (!isPlayerInitiated)
         {
@@ -837,8 +837,9 @@ public class BoardScript : MonoBehaviour
             }
 
             // Fire match events before destroying bricks - one event per match group
-            foreach (var matchGroup in matchGroups)
+            for (int groupIndex = 0; groupIndex < matchGroups.Count; groupIndex++)
             {
+                var matchGroup = matchGroups[groupIndex];
                 if (matchGroup.Count > 0)
                 {
                     // Get positions of matched bricks in this group
@@ -865,7 +866,7 @@ public class BoardScript : MonoBehaviour
                     if (representativeBrick != null)
                     {
                         bool isThisMatchPlayerInitiated = isPlayerInitiated && firstMatch;
-                        OnMatch?.Invoke(representativeBrick, matchGroup.Count, removedPositions, isThisMatchPlayerInitiated);
+                        OnMatch?.Invoke(representativeBrick, matchGroup.Count, removedPositions, isThisMatchPlayerInitiated, groupIndex);
                         // Only the first match group should trigger block advancement
                         firstMatch = false;
                     }

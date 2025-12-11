@@ -224,7 +224,7 @@ public class GameScript : MonoBehaviour
         BoardScript.OnFailedSwapAttempt -= HandleFailedSwap;
     }
 
-    private void HandleMatch(BrickScript representativeBrick, int matchCount, Vector2Int[] removedPositions, bool isPlayerInitiated)
+    private void HandleMatch(BrickScript representativeBrick, int matchCount, Vector2Int[] removedPositions, bool isPlayerInitiated, int groupIndex)
     {
         // Play match sound
         if (audioSource != null)
@@ -241,7 +241,7 @@ public class GameScript : MonoBehaviour
 
         if (BallPrefab != null && BallSpawnPoint != null && removedPositions.Length > 0)
         {
-            SpawnBallsInPattern(removedPositions, representativeBrick);
+            SpawnBallsInPattern(removedPositions, representativeBrick, groupIndex);
         }
 
         // Only trigger block advancement for player-initiated matches
@@ -259,7 +259,7 @@ public class GameScript : MonoBehaviour
         }
     }
 
-    private void SpawnBallsInPattern(Vector2Int[] positions, BrickScript representativeBrick)
+    private void SpawnBallsInPattern(Vector2Int[] positions, BrickScript representativeBrick, int groupIndex = 0)
     {
         if (positions.Length == 0) return;
 
@@ -284,6 +284,10 @@ public class GameScript : MonoBehaviour
 
         // Spawn balls relative to BallSpawnPoint, maintaining the match pattern
         Vector3 basePosition = BallSpawnPoint.position;
+
+        // Apply group offset to space apart multiple match groups
+        float groupSpacing = 0.1f; // Distance between match groups
+        basePosition.x += groupIndex * groupSpacing;
 
         foreach (var pos in positions)
         {
