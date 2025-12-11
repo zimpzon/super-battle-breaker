@@ -105,6 +105,8 @@ public class BoardScript : MonoBehaviour
     private List<MovingBrick> movingBricks = new List<MovingBrick>();
     public bool HasActiveMovements => movingBricks.Count > 0;
 
+    private Coroutine settleCoroutine;
+
     private bool IsBoardBusy()
     {
         return isProcessingSwap || isProcessingMatches || isProcessingSettlement || isBoardFilling || HasActiveMovements;
@@ -184,6 +186,47 @@ public class BoardScript : MonoBehaviour
     {
         Instance = this;
         // Don't start settlement until game begins
+    }
+
+    private void OnDisable()
+    {
+        StopSettlementLoop();
+    }
+
+    public void StartSettlementLoop()
+    {
+        if (settleCoroutine != null)
+        {
+            StopCoroutine(settleCoroutine);
+        }
+        settleCoroutine = StartCoroutine(SettleCo());
+    }
+
+    public void StopSettlementLoop()
+    {
+        if (settleCoroutine != null)
+        {
+            StopCoroutine(settleCoroutine);
+            settleCoroutine = null;
+        }
+    }
+
+    public void ResetBoardState()
+    {
+        StopSettlementLoop();
+        for (int y = 0; y <= H; y++)
+        {
+            for (int x = 0; x < W; x++)
+            {
+                Board[x, y] = null;
+            }
+        }
+        movingBricks.Clear();
+        isProcessingSwap = false;
+        isProcessingMatches = false;
+        isProcessingSettlement = false;
+        isBoardFilling = false;
+        boardInitialized = false;
     }
 
     void Update()

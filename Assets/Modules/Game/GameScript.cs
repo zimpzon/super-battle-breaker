@@ -165,7 +165,10 @@ public class GameScript : MonoBehaviour
         }
 
         // Start the board settlement
-        BoardScript.Instance.StartCoroutine("SettleCo");
+        if (BoardScript.Instance != null)
+        {
+            BoardScript.Instance.StartSettlementLoop();
+        }
     }
 
     void RestartGame()
@@ -186,8 +189,11 @@ public class GameScript : MonoBehaviour
         }
 
         // Reset board state before starting new settlement
-        BoardScript.Instance.boardInitialized = false;
-        BoardScript.Instance.StartCoroutine("SettleCo");
+        if (BoardScript.Instance != null)
+        {
+            BoardScript.Instance.ResetBoardState();
+            BoardScript.Instance.StartSettlementLoop();
+        }
     }
 
     void UpdateScoreText()
