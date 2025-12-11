@@ -105,6 +105,11 @@ public class BoardScript : MonoBehaviour
     private List<MovingBrick> movingBricks = new List<MovingBrick>();
     public bool HasActiveMovements => movingBricks.Count > 0;
 
+    private bool IsBoardBusy()
+    {
+        return isProcessingSwap || isProcessingMatches || isProcessingSettlement || isBoardFilling || HasActiveMovements;
+    }
+
     public void AddMovingBrick(BrickScript brick, Vector3 targetPosition, float duration)
     {
         if (brick != null)
@@ -591,15 +596,9 @@ public class BoardScript : MonoBehaviour
             return;
         }
 
-        if (isProcessingSwap)
+        if (IsBoardBusy())
         {
-            //Debug.Log("Processing swap - ignoring drag");
-            return;
-        }
-
-        if (isProcessingMatches)
-        {
-            //Debug.Log("Processing matches - ignoring drag");
+            //Debug.Log("Board busy - ignoring drag");
             return;
         }
 
@@ -612,12 +611,6 @@ public class BoardScript : MonoBehaviour
         if (sourceBrick.BoardY == 0)
         {
             //Debug.Log("Dragged from spawn row - ignoring drag");
-            return;
-        }
-
-        if (HasActiveMovements)
-        {
-            //Debug.Log("Bricks still moving - ignoring drag");
             return;
         }
 
@@ -637,6 +630,14 @@ public class BoardScript : MonoBehaviour
         if (targetBrick == null || !IsValidBrick(targetBrick))
         {
             Debug.Log($"No valid brick at target position ({targetX},{targetY})");
+            return;
+        }
+
+        // Guard against stale board state before starting a swap
+        if (Board[sourceBrick.BoardX, sourceBrick.BoardY] != sourceBrick ||
+            Board[targetBrick.BoardX, targetBrick.BoardY] != targetBrick)
+        {
+            Debug.LogWarning("Swap aborted due to mismatched board state");
             return;
         }
 
@@ -661,21 +662,9 @@ public class BoardScript : MonoBehaviour
             return;
         }
 
-        if (isProcessingSwap)
+        if (IsBoardBusy())
         {
-            //Debug.Log("Processing swap - ignoring click");
-            return;
-        }
-
-        if (isProcessingMatches)
-        {
-            //Debug.Log("Processing matches - ignoring click");
-            return;
-        }
-
-        if (HasActiveMovements)
-        {
-            //Debug.Log("Bricks still moving - ignoring click");
+            //Debug.Log("Board busy - ignoring click");
             return;
         }
 

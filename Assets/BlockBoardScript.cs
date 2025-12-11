@@ -106,7 +106,7 @@ public class BlockBoardScript : MonoBehaviour
             // Check if this is a block (on the Block layer)
             if (block.gameObject.layer == LayerMask.NameToLayer("Block"))
             {
-                // Set movement based on pending advancement counter
+                // Only scroll if we have advancement credit
                 if (pendingAdvancement > 0)
                 {
                     block.linearVelocity = Vector2.up * scrollSpeed;
