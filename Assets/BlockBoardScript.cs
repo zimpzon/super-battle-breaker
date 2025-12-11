@@ -6,7 +6,7 @@ public class BlockBoardScript : MonoBehaviour
     public Transform BlockSpawnCenter;
     public GameObject[] BlockPrefabList;
     [SerializeField] private float blockSpacing = 1f;
-    [SerializeField] private float scrollSpeed = 3f;
+    [SerializeField] private float scrollSpeed = 6f;
 
     private Rect detectionRect;
     private int blockLayerMask;
