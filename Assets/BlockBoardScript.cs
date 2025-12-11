@@ -37,6 +37,8 @@ public class BlockBoardScript : MonoBehaviour
              BoardScript.Instance.isProcessingMatches ||
              BoardScript.Instance.isProcessingSettlement))
         {
+            // Stop movement while waiting to avoid drifting gaps
+            SetBlockVelocity(Vector2.zero);
             return;
         }
 
@@ -115,6 +117,19 @@ public class BlockBoardScript : MonoBehaviour
                 {
                     block.linearVelocity = Vector2.zero;
                 }
+            }
+        }
+    }
+
+    private void SetBlockVelocity(Vector2 velocity)
+    {
+        Rigidbody2D[] allBlocks = FindObjectsOfType<Rigidbody2D>();
+
+        foreach (Rigidbody2D block in allBlocks)
+        {
+            if (block.gameObject.layer == LayerMask.NameToLayer("Block"))
+            {
+                block.linearVelocity = velocity;
             }
         }
     }
