@@ -64,8 +64,8 @@ public static class Playfab
         var data = new Dictionary<string, string>
         {
             { "Platform|DeviceModel|OS", $"{Application.platform} | {SystemInfo.deviceModel} | {SystemInfo.operatingSystem}" },
-            { "game_version", "V1" },
-            { "super-battle-breaker",  "yay" },
+            { "game_version", "V1.1" },
+            { "super-battle-breaker",  "Super Battle Breaker" },
         };
 
         PlayFabClientAPI.UpdateUserData(new UpdateUserDataRequest
