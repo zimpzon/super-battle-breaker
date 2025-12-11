@@ -256,9 +256,9 @@ public class BoardScript : MonoBehaviour
         return new Vector3(x * brickSize + Upperleft.position.x, -y * brickSize + Upperleft.position.y, z);
     }
 
-    List<BrickScript> FindAllMatches()
+    List<List<BrickScript>> FindAllMatches()
     {
-        List<BrickScript> matches = new List<BrickScript>();
+        List<List<BrickScript>> matchGroups = new List<List<BrickScript>>();
         bool[,] processed = new bool[W, H + 1];
 
         for (int y = 1; y <= H; y++)
@@ -270,35 +270,55 @@ public class BoardScript : MonoBehaviour
                     List<BrickScript> horizontalMatch = FindHorizontalMatch(x, y);
                     if (horizontalMatch.Count >= 3)
                     {
+                        // Add this as a separate match group
+                        List<BrickScript> validHorizontalMatch = new List<BrickScript>();
                         foreach (var brick in horizontalMatch)
                         {
-                            if (brick != null && IsValidBrick(brick) && !matches.Contains(brick) &&
+                            if (brick != null && IsValidBrick(brick) && !processed[brick.BoardX, brick.BoardY] &&
                                 brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
                             {
-                                matches.Add(brick);
+                                validHorizontalMatch.Add(brick);
+                            }
+                        }
+                        if (validHorizontalMatch.Count >= 3)
+                        {
+                            // Only mark as processed after confirming this is a valid match
+                            foreach (var brick in validHorizontalMatch)
+                            {
                                 processed[brick.BoardX, brick.BoardY] = true;
                             }
+                            matchGroups.Add(validHorizontalMatch);
                         }
                     }
 
                     List<BrickScript> verticalMatch = FindVerticalMatch(x, y);
                     if (verticalMatch.Count >= 3)
                     {
+                        // Add this as a separate match group
+                        List<BrickScript> validVerticalMatch = new List<BrickScript>();
                         foreach (var brick in verticalMatch)
                         {
-                            if (brick != null && IsValidBrick(brick) && !matches.Contains(brick) &&
+                            if (brick != null && IsValidBrick(brick) && !processed[brick.BoardX, brick.BoardY] &&
                                 brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
                             {
-                                matches.Add(brick);
+                                validVerticalMatch.Add(brick);
+                            }
+                        }
+                        if (validVerticalMatch.Count >= 3)
+                        {
+                            // Only mark as processed after confirming this is a valid match
+                            foreach (var brick in validVerticalMatch)
+                            {
                                 processed[brick.BoardX, brick.BoardY] = true;
                             }
+                            matchGroups.Add(validVerticalMatch);
                         }
                     }
                 }
             }
         }
 
-        return matches;
+        return matchGroups;
     }
 
     List<BrickScript> FindHorizontalMatch(int startX, int startY)
@@ -383,7 +403,7 @@ public class BoardScript : MonoBehaviour
 
     bool HasCurrentMatches()
     {
-        List<BrickScript> currentMatches = FindAllMatches();
+        List<List<BrickScript>> currentMatches = FindAllMatches();
         return currentMatches.Count > 0;
     }
 
@@ -452,7 +472,7 @@ public class BoardScript : MonoBehaviour
         brick1.SetBoardPosition(x2, y2);
         brick2.SetBoardPosition(x1, y1);
 
-        List<BrickScript> matches = FindAllMatches();
+        List<List<BrickScript>> matches = FindAllMatches();
         bool hasMatches = matches.Count > 0;
 
         Board[x1, y1] = brick1;
@@ -542,7 +562,7 @@ public class BoardScript : MonoBehaviour
 
         yield return StartCoroutine(WaitForAllMovements());
 
-        List<BrickScript> immediateMatches = FindAllMatches();
+        List<List<BrickScript>> immediateMatches = FindAllMatches();
         if (immediateMatches.Count > 0)
         {
             if (!isProcessingMatches)
@@ -753,7 +773,7 @@ public class BoardScript : MonoBehaviour
 
         yield return StartCoroutine(WaitForAllMovements());
 
-        List<BrickScript> matches = FindAllMatches();
+        List<List<BrickScript>> matches = FindAllMatches();
 
         if (matches.Count == 0)
         {
@@ -809,58 +829,65 @@ public class BoardScript : MonoBehaviour
 
         while (true)
         {
-            List<BrickScript> matches = FindAllMatches();
+            List<List<BrickScript>> matchGroups = FindAllMatches();
 
-            if (matches.Count == 0)
+            if (matchGroups.Count == 0)
             {
                 break;
             }
 
-            // Fire match events before destroying bricks
-            if (matches.Count > 0)
+            // Fire match events before destroying bricks - one event per match group
+            foreach (var matchGroup in matchGroups)
             {
-                // Get positions of all matched bricks
-                Vector2Int[] removedPositions = new Vector2Int[matches.Count];
-                for (int i = 0; i < matches.Count; i++)
+                if (matchGroup.Count > 0)
                 {
-                    if (matches[i] != null)
+                    // Get positions of matched bricks in this group
+                    Vector2Int[] removedPositions = new Vector2Int[matchGroup.Count];
+                    for (int i = 0; i < matchGroup.Count; i++)
                     {
-                        removedPositions[i] = new Vector2Int(matches[i].BoardX, matches[i].BoardY);
+                        if (matchGroup[i] != null)
+                        {
+                            removedPositions[i] = new Vector2Int(matchGroup[i].BoardX, matchGroup[i].BoardY);
+                        }
                     }
-                }
 
-                // Fire event for first valid brick (as representative of the match)
-                BrickScript representativeBrick = null;
-                foreach (var match in matches)
-                {
-                    if (match != null && IsValidBrick(match))
+                    // Fire event for first valid brick in this group (as representative)
+                    BrickScript representativeBrick = null;
+                    foreach (var match in matchGroup)
                     {
-                        representativeBrick = match;
-                        break;
+                        if (match != null && IsValidBrick(match))
+                        {
+                            representativeBrick = match;
+                            break;
+                        }
                     }
-                }
 
-                if (representativeBrick != null)
-                {
-                    bool isThisMatchPlayerInitiated = isPlayerInitiated && firstMatch;
-                    OnMatch?.Invoke(representativeBrick, matches.Count, removedPositions, isThisMatchPlayerInitiated);
+                    if (representativeBrick != null)
+                    {
+                        bool isThisMatchPlayerInitiated = isPlayerInitiated && firstMatch;
+                        OnMatch?.Invoke(representativeBrick, matchGroup.Count, removedPositions, isThisMatchPlayerInitiated);
+                        // Only the first match group should trigger block advancement
+                        firstMatch = false;
+                    }
                 }
             }
 
-            foreach (BrickScript match in matches)
+            // Destroy all matched bricks from all groups
+            foreach (var matchGroup in matchGroups)
             {
-                if (match != null && IsValidBrick(match) &&
-                    match.BoardX >= 0 && match.BoardX < W &&
-                    match.BoardY >= 0 && match.BoardY <= H)
+                foreach (BrickScript match in matchGroup)
                 {
-                    Board[match.BoardX, match.BoardY] = null;
-                    match.StartScaleDestruction(0.3f);
+                    if (match != null && IsValidBrick(match) &&
+                        match.BoardX >= 0 && match.BoardX < W &&
+                        match.BoardY >= 0 && match.BoardY <= H)
+                    {
+                        Board[match.BoardX, match.BoardY] = null;
+                        match.StartScaleDestruction(0.3f);
+                    }
                 }
             }
 
             CleanupNullBricks();
-
-            firstMatch = false;
 
             yield return StartCoroutine(SettleAllColumnsCo());
         }

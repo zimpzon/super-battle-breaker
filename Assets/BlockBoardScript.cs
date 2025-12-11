@@ -31,6 +31,15 @@ public class BlockBoardScript : MonoBehaviour
     {
         if (!GameScript.I.IsPlaying) return;
 
+        // Don't spawn blocks while board is busy processing
+        if (BoardScript.Instance != null &&
+            (BoardScript.Instance.isProcessingSwap ||
+             BoardScript.Instance.isProcessingMatches ||
+             BoardScript.Instance.isProcessingSettlement))
+        {
+            return;
+        }
+
         // Control block movement based on pending advancement
         UpdateBlockMovement();
 
