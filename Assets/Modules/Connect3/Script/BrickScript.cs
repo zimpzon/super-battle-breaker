@@ -80,8 +80,6 @@ public class BrickScript : MonoBehaviour
 
     private Vector3 mouseDownPosition;
     private bool hasDragged = false;
-    private int pendingTargetX = -1;
-    private int pendingTargetY = -1;
     private float dragThreshold = 0.5f; // Minimum distance to register as drag
 
     void OnMouseDown()
@@ -91,8 +89,6 @@ public class BrickScript : MonoBehaviour
         mouseDownPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         mouseDownPosition.z = 0; // Ensure Z is 0 for 2D
         hasDragged = false;
-        pendingTargetX = -1;
-        pendingTargetY = -1;
 
         // Debug.Log($"=== MOUSE DOWN ===");
         //Debug.Log($"Mouse down on brick at ({BoardX},{BoardY})");
@@ -127,14 +123,20 @@ public class BrickScript : MonoBehaviour
             // Debug.Log($"=== DRAG DETECTED ===");
             //Debug.Log($"Drag distance: {dragDistance:F2}, direction: {dragDirection}");
 
-            // Store the target position for potential swap on mouse up
-            pendingTargetX = BoardX + (int)dragDirection.x;
-            pendingTargetY = BoardY + (int)dragDirection.y;
+            // Find the adjacent brick in that direction
+            int targetX = BoardX + (int)dragDirection.x;
+            int targetY = BoardY + (int)dragDirection.y;
 
-            //Debug.Log($"Target position: ({pendingTargetX},{pendingTargetY})");
+            //Debug.Log($"Target position: ({targetX},{targetY})");
 
             // Clear drag highlight
             SetSelected(false);
+
+            // Trigger swap with adjacent brick
+            if (BoardScript.Instance != null)
+            {
+                BoardScript.Instance.OnDragSwap(this, targetX, targetY);
+            }
         }
     }
 
@@ -161,18 +163,11 @@ public class BrickScript : MonoBehaviour
         }
         else
         {
-            // Drag completed - execute the swap if we have a valid target
             //Debug.Log("Drag operation completed");
-            if (pendingTargetX != -1 && pendingTargetY != -1 && BoardScript.Instance != null)
-            {
-                BoardScript.Instance.OnDragSwap(this, pendingTargetX, pendingTargetY);
-            }
         }
 
         // Reset for next interaction
         hasDragged = false;
-        pendingTargetX = -1;
-        pendingTargetY = -1;
     }
 
     private Vector2 GetDragDirection(Vector3 dragDelta)
