@@ -5,8 +5,9 @@ public class BlockBoardScript : MonoBehaviour
 {
     public Transform BlockSpawnCenter;
     public GameObject[] BlockPrefabList;
-    [SerializeField] private float blockSpacing = 1f;
-    [SerializeField] private float scrollSpeed = 6f;
+    private float blockSpacing = 1f;
+    private float activeScrollSpeed = 0.1f;
+    private float waitingScrollSpeed = 0.02f;
 
     private Rect detectionRect;
     private int blockLayerMask;
@@ -31,17 +32,6 @@ public class BlockBoardScript : MonoBehaviour
     {
         if (!GameScript.I.IsPlaying) return;
 
-        // Don't spawn blocks while board is busy processing
-        if (BoardScript.Instance != null &&
-            (BoardScript.Instance.isProcessingSwap ||
-             BoardScript.Instance.isProcessingMatches ||
-             BoardScript.Instance.isProcessingSettlement))
-        {
-            // Stop movement while waiting to avoid drifting gaps
-            SetBlockVelocity(Vector2.zero);
-            return;
-        }
-
         // Control block movement based on pending advancement
         UpdateBlockMovement();
 
@@ -52,16 +42,11 @@ public class BlockBoardScript : MonoBehaviour
             blockLayerMask
         );
 
-        // If no blocks detected, and we have pending advancement, spawn new row and decrement counter
-        if (hit == null && pendingAdvancement > 0)
+        bool spawnRowEmpty = hit == null;
+        if (spawnRowEmpty)
         {
             SpawnRow();
             pendingAdvancement--;
-        }
-        // If no blocks and no pending advancement, spawn initial row (for game start)
-        else if (hit == null && pendingAdvancement == 0 && !HasAnyBlocks())
-        {
-            SpawnRow();
         }
     }
 
@@ -108,15 +93,10 @@ public class BlockBoardScript : MonoBehaviour
             // Check if this is a block (on the Block layer)
             if (block.gameObject.layer == LayerMask.NameToLayer("Block"))
             {
-                // Only scroll if we have advancement credit
-                if (pendingAdvancement > 0)
-                {
-                    block.linearVelocity = Vector2.up * scrollSpeed;
-                }
-                else
-                {
-                    block.linearVelocity = Vector2.zero;
-                }
+                // Use active speed when advancing, otherwise waiting speed
+                block.linearVelocity = pendingAdvancement > 0
+                    ? Vector2.up * activeScrollSpeed
+                    : Vector2.up * waitingScrollSpeed;
             }
         }
     }
