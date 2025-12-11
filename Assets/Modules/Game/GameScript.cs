@@ -124,6 +124,12 @@ public class GameScript : MonoBehaviour
 
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.R) && isPlaying)
+        {
+            GameOver();
+            return;
+        }
+
         if (!isPlaying && Input.GetKeyDown(KeyCode.Space))
         {
             Debug.Log("Space pressed");
