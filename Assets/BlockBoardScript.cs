@@ -8,6 +8,8 @@ public class BlockBoardScript : MonoBehaviour
     private float blockSpacing = 1f;
     private float activeScrollSpeed = 0.1f;
     private float waitingScrollSpeed = 0.02f;
+    private float speedRampPerSecond = 0.0005f;
+    private float speedMultiplier = 1f;
 
     private Rect detectionRect;
     private int blockLayerMask;
@@ -31,6 +33,9 @@ public class BlockBoardScript : MonoBehaviour
     void Update()
     {
         if (!GameScript.I.IsPlaying) return;
+
+        // Ramp speed over play time
+        speedMultiplier += speedRampPerSecond * Time.deltaTime;
 
         // Control block movement based on pending advancement
         UpdateBlockMovement();
@@ -69,7 +74,7 @@ public class BlockBoardScript : MonoBehaviour
 
             // Start with no movement - will be controlled by UpdateBlockMovement
             Rigidbody2D rb = block.GetComponent<Rigidbody2D>();
-            rb.linearVelocity = Vector2.zero;
+            rb.linearVelocity = Vector2.up * waitingScrollSpeed * speedMultiplier;
         }
     }
 
@@ -81,6 +86,7 @@ public class BlockBoardScript : MonoBehaviour
     public void ResetAdvancement()
     {
         pendingAdvancement = 2;
+        speedMultiplier = 1f;
     }
 
     private void UpdateBlockMovement()
@@ -95,8 +101,8 @@ public class BlockBoardScript : MonoBehaviour
             {
                 // Use active speed when advancing, otherwise waiting speed
                 block.linearVelocity = pendingAdvancement > 0
-                    ? Vector2.up * activeScrollSpeed
-                    : Vector2.up * waitingScrollSpeed;
+                    ? Vector2.up * activeScrollSpeed * speedMultiplier
+                    : Vector2.up * waitingScrollSpeed * speedMultiplier;
             }
         }
     }
