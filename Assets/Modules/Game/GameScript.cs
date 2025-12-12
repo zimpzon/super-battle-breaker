@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -42,23 +43,36 @@ public class GameScript : MonoBehaviour
 
     public void GameOver()
     {
-        TextGameOver.enabled = true;
-        Time.timeScale = 0.00001f;
-        isPlaying = false;
-        TextGameOver.text = "GAME OVER\n<size=-10>PRESS SPACE TO BEGIN\n\n<size=-25>Write your best score in the comments!";
-
-        // Play game over sound
-        if (audioSource != null && soundGameOver != null)
-        {
-            audioSource.PlayOneShot(soundGameOver);
-        }
-
         // Update best score if needed
+        bool isNewBestScore = false;
         if (score > bestScore)
         {
             bestScore = score;
             PlayerPrefs.SetInt("BestScore", bestScore);
             PlayerPrefs.Save();
+            isNewBestScore = true;
+        }
+
+        TextGameOver.enabled = true;
+        Time.timeScale = 0.00001f;
+        isPlaying = false;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("GAME OVER");
+        if (isNewBestScore)
+            sb.AppendLine("<size=-5><color=yellow>New best score!</color>");
+
+        sb.AppendLine("<size=-10>PRESS SPACE TO BEGIN");
+        sb.AppendLine();
+        sb.AppendLine("<size=-25>Write your best score in the comments!");
+
+        TextGameOver.text = sb.ToString();
+
+
+        // Play game over sound
+        if (audioSource != null && soundGameOver != null)
+        {
+            audioSource.PlayOneShot(soundGameOver);
         }
 
         var stats = new Dictionary<string, int> { { "score", score }, { "best_score", bestScore } };
@@ -133,7 +147,6 @@ public class GameScript : MonoBehaviour
 
         if (!isPlaying && Input.GetKeyDown(KeyCode.Space))
         {
-            Debug.Log("Space pressed");
             if (!IsFirstStart)
             {
                 // First time starting
@@ -205,7 +218,7 @@ public class GameScript : MonoBehaviour
 
     void UpdateScoreText()
     {
-        TextScore.text = $"Score: {score}<color=#888888><size=-4>Best: {GameScript.I.BestScore}";
+        TextScore.text = $"Score: {score}<color=#888888>\n<size=-4>Best: {GameScript.I.BestScore}";
     }
 
     public void AddScore(int points)
