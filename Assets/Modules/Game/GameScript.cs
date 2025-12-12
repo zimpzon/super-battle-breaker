@@ -26,7 +26,8 @@ public class GameScript : MonoBehaviour
     public TMP_Text TextScore;
 
     [Header("Sound Effects")]
-    public AudioSource audioSource;
+    public AudioSource audioSourceMusic;
+    public AudioSource audioSourceSfx;
     public AudioClip soundMatch3;
     public AudioClip soundMatchBig;
     public AudioClip soundBlockPop;
@@ -68,12 +69,7 @@ public class GameScript : MonoBehaviour
 
         TextGameOver.text = sb.ToString();
 
-
-        // Play game over sound
-        if (audioSource != null && soundGameOver != null)
-        {
-            audioSource.PlayOneShot(soundGameOver);
-        }
+        audioSourceSfx.PlayOneShot(soundGameOver);
 
         var stats = new Dictionary<string, int> { { "score", score }, { "best_score", bestScore } };
         Playfab.PlayerStat(stats);
@@ -118,10 +114,11 @@ public class GameScript : MonoBehaviour
 
     private void Start()
     {
-        audioSource.clip = music;
-        audioSource.loop = true;
-        audioSource.volume = 0.10f;
-        audioSource.Play();
+        audioSourceMusic.clip = music;
+        audioSourceMusic.loop = true;
+        audioSourceMusic.volume = 0.10f;
+        audioSourceMusic.Play();
+        audioSourceSfx.volume = 0.25f;
 
         // Load best score from PlayerPrefs
         bestScore = PlayerPrefs.GetInt("BestScore", 0);
@@ -229,9 +226,9 @@ public class GameScript : MonoBehaviour
 
     public void PlayBlockPopSound()
     {
-        if (audioSource != null && soundBlockPop != null)
+        if (audioSourceMusic != null && soundBlockPop != null)
         {
-            audioSource.PlayOneShot(soundBlockPop);
+            audioSourceMusic.PlayOneShot(soundBlockPop);
         }
     }
 
@@ -253,15 +250,16 @@ public class GameScript : MonoBehaviour
     private void HandleMatch(BrickScript representativeBrick, int matchCount, Vector2Int[] removedPositions, bool isPlayerInitiated, int groupIndex)
     {
         // Play match sound
-        if (audioSource != null)
+        if (audioSourceMusic != null)
         {
             if (matchCount == 3 && soundMatch3 != null)
             {
-                audioSource.PlayOneShot(soundMatch3);
+                audioSourceSfx.PlayOneShot(soundMatch3);
             }
             else if (matchCount > 3 && soundMatchBig != null)
             {
-                audioSource.PlayOneShot(soundMatchBig);
+                CameraShake.I.Shake();
+                audioSourceSfx.PlayOneShot(soundMatchBig);
             }
         }
 
