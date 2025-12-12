@@ -5,7 +5,9 @@ public class BallScript : MonoBehaviour
     [Header("Ball Type")]
     public BrickType ballType;
 
-    void Start()
+    private void OnDestroy()
     {
+        var thisColor = GetComponent<SpriteRenderer>().color;
+        ParticleScript.I.Emit(ParticleScript.I.BallDecayParticles, transform.position, 4, thisColor);
     }
 }
