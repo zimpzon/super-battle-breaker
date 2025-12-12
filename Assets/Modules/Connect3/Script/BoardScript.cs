@@ -193,6 +193,20 @@ public class BoardScript : MonoBehaviour
         StopSettlementLoop();
     }
 
+    private void RemoveConflictAt(int x, int y, BrickScript primary, BrickScript secondary = null)
+    {
+        BrickScript occupant = Board[x, y];
+        if (occupant != null && occupant != primary && occupant != secondary)
+        {
+            Debug.LogWarning($"Resolving conflicting brick at ({x},{y}) occupied by {occupant.name} while swapping {primary.name}");
+            Board[x, y] = null;
+            if (occupant != null && occupant.gameObject != null)
+            {
+                Destroy(occupant.gameObject);
+            }
+        }
+    }
+
     public void StartSettlementLoop()
     {
         if (settleCoroutine != null)
@@ -306,67 +320,70 @@ public class BoardScript : MonoBehaviour
 
     List<List<BrickScript>> FindAllMatches()
     {
-        List<List<BrickScript>> matchGroups = new List<List<BrickScript>>();
-        bool[,] processed = new bool[W, H + 1];
+        List<HashSet<BrickScript>> mergedGroups = new List<HashSet<BrickScript>>();
+
+        void AddOrMergeGroup(List<BrickScript> match)
+        {
+            // Filter to valid bricks
+            List<BrickScript> valid = new List<BrickScript>();
+            foreach (var brick in match)
+            {
+                if (brick != null && IsValidBrick(brick) &&
+                    brick.BoardX >= 0 && brick.BoardX < W &&
+                    brick.BoardY >= 0 && brick.BoardY <= H)
+                {
+                    valid.Add(brick);
+                }
+            }
+
+            if (valid.Count < 3) return;
+
+            HashSet<BrickScript> newGroup = new HashSet<BrickScript>(valid);
+            // Merge with any existing groups that overlap to avoid leaving shared bricks behind
+            for (int i = mergedGroups.Count - 1; i >= 0; i--)
+            {
+                var group = mergedGroups[i];
+                foreach (var b in newGroup)
+                {
+                    if (group.Contains(b))
+                    {
+                        newGroup.UnionWith(group);
+                        mergedGroups.RemoveAt(i);
+                        break;
+                    }
+                }
+            }
+            mergedGroups.Add(newGroup);
+        }
 
         for (int y = 1; y <= H; y++)
         {
             for (int x = 0; x < W; x++)
             {
-                if (Board[x, y] != null && IsValidBrick(Board[x, y]) && !processed[x, y])
+                if (Board[x, y] != null && IsValidBrick(Board[x, y]))
                 {
-                    List<BrickScript> horizontalMatch = FindHorizontalMatch(x, y);
+                    var horizontalMatch = FindHorizontalMatch(x, y);
                     if (horizontalMatch.Count >= 3)
                     {
-                        // Add this as a separate match group
-                        List<BrickScript> validHorizontalMatch = new List<BrickScript>();
-                        foreach (var brick in horizontalMatch)
-                        {
-                            if (brick != null && IsValidBrick(brick) && !processed[brick.BoardX, brick.BoardY] &&
-                                brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
-                            {
-                                validHorizontalMatch.Add(brick);
-                            }
-                        }
-                        if (validHorizontalMatch.Count >= 3)
-                        {
-                            // Only mark as processed after confirming this is a valid match
-                            foreach (var brick in validHorizontalMatch)
-                            {
-                                processed[brick.BoardX, brick.BoardY] = true;
-                            }
-                            matchGroups.Add(validHorizontalMatch);
-                        }
+                        AddOrMergeGroup(horizontalMatch);
                     }
 
-                    List<BrickScript> verticalMatch = FindVerticalMatch(x, y);
+                    var verticalMatch = FindVerticalMatch(x, y);
                     if (verticalMatch.Count >= 3)
                     {
-                        // Add this as a separate match group
-                        List<BrickScript> validVerticalMatch = new List<BrickScript>();
-                        foreach (var brick in verticalMatch)
-                        {
-                            if (brick != null && IsValidBrick(brick) && !processed[brick.BoardX, brick.BoardY] &&
-                                brick.BoardX >= 0 && brick.BoardX < W && brick.BoardY >= 0 && brick.BoardY <= H)
-                            {
-                                validVerticalMatch.Add(brick);
-                            }
-                        }
-                        if (validVerticalMatch.Count >= 3)
-                        {
-                            // Only mark as processed after confirming this is a valid match
-                            foreach (var brick in validVerticalMatch)
-                            {
-                                processed[brick.BoardX, brick.BoardY] = true;
-                            }
-                            matchGroups.Add(validVerticalMatch);
-                        }
+                        AddOrMergeGroup(verticalMatch);
                     }
                 }
             }
         }
 
-        return matchGroups;
+        // Convert to list-of-lists
+        List<List<BrickScript>> result = new List<List<BrickScript>>();
+        foreach (var group in mergedGroups)
+        {
+            result.Add(new List<BrickScript>(group));
+        }
+        return result;
     }
 
     List<BrickScript> FindHorizontalMatch(int startX, int startY)
@@ -816,6 +833,10 @@ public class BoardScript : MonoBehaviour
             Vector2Int pos2Vec = new Vector2Int(originalBrick2X, originalBrick2Y);
             OnFailedSwapAttempt?.Invoke(brick1, brick2, pos1Vec, pos2Vec);
 
+            // Ensure original slots are clear before reverting
+            RemoveConflictAt(originalBrick1X, originalBrick1Y, brick1, brick2);
+            RemoveConflictAt(originalBrick2X, originalBrick2Y, brick1, brick2);
+
             SwapBricksInArray(brick1, originalBrick2X, originalBrick2Y, brick2, originalBrick1X, originalBrick1Y);
             brick1.SetBoardPosition(originalBrick1X, originalBrick1Y);
             brick2.SetBoardPosition(originalBrick2X, originalBrick2Y);
@@ -840,6 +861,18 @@ public class BoardScript : MonoBehaviour
 
             if (!isProcessingMatches)
             {
+                // Make sure match slots aren’t already corrupted by stray occupants
+                foreach (var group in matches)
+                {
+                    foreach (var match in group)
+                    {
+                        if (match != null && IsValidBrick(match))
+                        {
+                            RemoveConflictAt(match.BoardX, match.BoardY, match);
+                        }
+                    }
+                }
+
                 StartCoroutine(ProcessMatchesCo(true));
             }
         }

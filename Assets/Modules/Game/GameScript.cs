@@ -16,6 +16,7 @@ public class GameScript : MonoBehaviour
     [SerializeField] private float ballLaunchHorzVelocityMultiplier = 0.75f;
 
     public bool IsPlaying => isPlaying;
+    public int BestScore => bestScore;
 
     bool isPlaying = false; // Start as false for initial start screen
     bool IsFirstStart = true; // Track if this is the first start
@@ -204,7 +205,7 @@ public class GameScript : MonoBehaviour
 
     void UpdateScoreText()
     {
-        TextScore.text = $"Score: {score}";
+        TextScore.text = $"Score: {score}<color=#888888><size=-4>Best: {GameScript.I.BestScore}";
     }
 
     public void AddScore(int points)
