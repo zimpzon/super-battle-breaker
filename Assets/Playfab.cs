@@ -64,7 +64,7 @@ public static class Playfab
         var data = new Dictionary<string, string>
         {
             { "Platform|DeviceModel|OS", $"{Application.platform} | {SystemInfo.deviceModel} | {SystemInfo.operatingSystem}" },
-            { "game_version", "V1.4" },
+            { "game_version", "V1.6" },
             { "super-battle-breaker",  "Super Battle Breaker" },
             { "hosting_info", JsMappings.GetHostingInfo() },
         };

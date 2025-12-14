@@ -287,16 +287,8 @@ public class GameScript : MonoBehaviour
     {
         if (positions.Length == 0) return;
 
-        // Determine how many balls to spawn per position based on match count
-        int ballsPerPosition = 1;
-        if (positions.Length >= 5)
-        {
-            ballsPerPosition = 3;
-        }
-        else if (positions.Length >= 4)
-        {
-            ballsPerPosition = 2;
-        }
+        // For 4+ matches: spawn matched color balls + random color balls
+        bool is4PlusMatch = positions.Length >= 4;
 
         // Find the center of the matched pattern
         Vector2 center = Vector2.zero;
@@ -321,60 +313,197 @@ public class GameScript : MonoBehaviour
             // Apply spacing and spawn at BallSpawnPoint + offset
             Vector3 spawnPos = basePosition + new Vector3(offset.x * ballSpacing, offset.y * ballSpacing, 0);
 
-            // Spawn multiple balls with slight X offset
-            for (int i = 0; i < ballsPerPosition; i++)
+            // Always spawn one matched-color ball per cleared brick
+            SpawnBallSet(spawnPos, 1, representativeBrick.Type, representativeBrick.Color, 0f);
+
+            if (is4PlusMatch)
             {
-                // Adjust X position by 0.05 per ball
-                Vector3 adjustedSpawnPos = spawnPos + new Vector3(i * 0.2f, 0, 0);
-
-                // Clamp spawn position to stay within the movement range (4 units left/right of start)
-                float clampedX = Mathf.Clamp(adjustedSpawnPos.x, startPosition.x - moveRange, startPosition.x + moveRange);
-                adjustedSpawnPos.x = clampedX;
-
-                GameObject ball = Instantiate(BallPrefab, adjustedSpawnPos, Quaternion.identity, parent: transform);
-                Color ballColor = Color.Lerp(representativeBrick.Color, Color.black, 0.2f);
-                ball.GetComponent<SpriteRenderer>().color = ballColor;
-
-                // Set ball type to match brick type
-                BallScript ballScript = ball.GetComponent<BallScript>();
-                ballScript.ballType = representativeBrick.Type;
-
-                // Set light color to match brick color
-                if (ball.TryGetComponent<Light2D>(out var ballLight))
+                // Spawn random colored balls from other prefabs (not the matched color)
+                BrickType randomType = GetRandomAlternateBrickType(representativeBrick.Type);
+                Color randomColor = GetColorForBrickType(randomType, representativeBrick.Color);
+                if (randomType == representativeBrick.Type || ColorsApproximatelyEqual(randomColor, representativeBrick.Color))
                 {
-                    ballLight.color = representativeBrick.Color;
+                    randomColor = GetRandomDistinctColor(representativeBrick.Color, representativeBrick.Type);
                 }
+                SpawnBallSet(spawnPos, 1, randomType, randomColor, 0.2f);
+            }
+        }
+    }
 
-                // Set trail renderer color darker than ball color
-                if (ball.TryGetComponent<TrailRenderer>(out var trailRenderer))
+    private void SpawnBallSet(Vector3 spawnPos, int count, BrickType ballType, Color brickColor, float initialXOffset)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            float offset = initialXOffset + (i * 0.2f);
+            Vector3 adjustedSpawnPos = spawnPos + new Vector3(offset, 0, 0);
+
+            // Clamp spawn position to stay within the movement range (4 units left/right of start)
+            float clampedX = Mathf.Clamp(adjustedSpawnPos.x, startPosition.x - moveRange, startPosition.x + moveRange);
+            adjustedSpawnPos.x = clampedX;
+
+            SpawnBallInstance(adjustedSpawnPos, ballType, brickColor);
+        }
+    }
+
+    private void SpawnBallInstance(Vector3 spawnPos, BrickType ballType, Color brickColor)
+    {
+        GameObject ball = Instantiate(BallPrefab, spawnPos, Quaternion.identity, parent: transform);
+        Color ballColor = Color.Lerp(brickColor, Color.black, 0.2f);
+        ball.GetComponent<SpriteRenderer>().color = ballColor;
+
+        // Set ball type to match brick type
+        BallScript ballScript = ball.GetComponent<BallScript>();
+        ballScript.ballType = ballType;
+
+        // Set light color to match brick color
+        if (ball.TryGetComponent<Light2D>(out var ballLight))
+        {
+            ballLight.color = brickColor;
+        }
+
+        // Set trail renderer color darker than ball color
+        if (ball.TryGetComponent<TrailRenderer>(out var trailRenderer))
+        {
+            Color trailColor = Color.Lerp(ballColor, Color.black, 0.5f);
+            trailRenderer.startColor = trailColor;
+            trailRenderer.endColor = trailColor;
+        }
+
+        // Destroy ball after X seconds
+        Destroy(ball, 10f);
+
+        // Add physics and set velocity
+        if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))
+        {
+            // Calculate instantaneous velocity from movement equation
+            float currentVelocity = Mathf.Cos(Time.unscaledTime * moveSpeed + timeOffset) * moveSpeed * moveRange;
+            Vector2 ballVelocity = new Vector2(currentVelocity * ballLaunchHorzVelocityMultiplier, 0f);
+
+            rb2d.linearVelocity = ballVelocity;
+        }
+        else if (ball.TryGetComponent<Rigidbody>(out var rb3d))
+        {
+            // Calculate instantaneous velocity from movement equation
+            float currentVelocity = Mathf.Cos(Time.unscaledTime * moveSpeed + timeOffset) * moveSpeed * moveRange;
+            Vector3 ballVelocity = new Vector3(currentVelocity * ballLaunchHorzVelocityMultiplier, 0f, 0f);
+
+            rb3d.linearVelocity = ballVelocity;
+        }
+    }
+
+    private BrickType GetRandomBrickType()
+    {
+        GameObject randomPrefab = BrickPrefabs.I?.GetRandomBrickPrefab();
+        if (randomPrefab != null)
+        {
+            BrickScript brick = randomPrefab.GetComponent<BrickScript>();
+            if (brick != null && brick.Type != BrickType.Undefined)
+            {
+                return brick.Type;
+            }
+        }
+
+        // Fallback to any valid type
+        return BrickType.Type1;
+    }
+
+    private BrickType GetRandomAlternateBrickType(BrickType originalType)
+    {
+        if (BrickPrefabs.I == null || BrickPrefabs.I.Prefabs == null || BrickPrefabs.I.Prefabs.Count == 0)
+        {
+            return originalType;
+        }
+
+        List<BrickType> availableTypes = new List<BrickType>();
+        for (int i = 0; i < BrickPrefabs.I.Prefabs.Count; i++)
+        {
+            if (i == 0) continue; // Skip index 0 per project convention
+            var prefab = BrickPrefabs.I.Prefabs[i];
+            if (prefab == null) continue;
+            var brick = prefab.GetComponent<BrickScript>();
+            if (brick == null) continue;
+
+            if (brick.Type != BrickType.Undefined && brick.Type != originalType && !availableTypes.Contains(brick.Type))
+            {
+                availableTypes.Add(brick.Type);
+            }
+        }
+
+        if (availableTypes.Count == 0)
+        {
+            return originalType;
+        }
+
+        int randomIndex = UnityEngine.Random.Range(0, availableTypes.Count);
+        return availableTypes[randomIndex];
+    }
+
+    private Color GetColorForBrickType(BrickType brickType, Color fallbackColor)
+    {
+        if (BrickPrefabs.I != null && BrickPrefabs.I.Prefabs != null)
+        {
+            foreach (var prefab in BrickPrefabs.I.Prefabs)
+            {
+                if (prefab == null) continue;
+                var brick = prefab.GetComponent<BrickScript>();
+                if (brick != null && brick.Type == brickType)
                 {
-                    Color trailColor = Color.Lerp(ballColor, Color.black, 0.5f);
-                    trailRenderer.startColor = trailColor;
-                    trailRenderer.endColor = trailColor;
-                }
-
-                // Destroy ball after X seconds
-                Destroy(ball, 10f);
-
-                // Add physics and set velocity
-                if (ball.TryGetComponent<Rigidbody2D>(out var rb2d))
-                {
-                    // Calculate instantaneous velocity from movement equation
-                    float currentVelocity = Mathf.Cos(Time.unscaledTime * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                    Vector2 ballVelocity = new Vector2(currentVelocity * ballLaunchHorzVelocityMultiplier, 0f);
-
-                    rb2d.linearVelocity = ballVelocity;
-                }
-                else if (ball.TryGetComponent<Rigidbody>(out var rb3d))
-                {
-                    // Calculate instantaneous velocity from movement equation
-                    float currentVelocity = Mathf.Cos(Time.unscaledTime * moveSpeed + timeOffset) * moveSpeed * moveRange;
-                    Vector3 ballVelocity = new Vector3(currentVelocity * ballLaunchHorzVelocityMultiplier, 0f, 0f);
-
-                    rb3d.linearVelocity = ballVelocity;
+                    Color color = brick.Color;
+                    return ColorsApproximatelyEqual(color, fallbackColor)
+                        ? GetRandomDistinctColor(fallbackColor, brickType)
+                        : color;
                 }
             }
         }
+
+        return GetRandomDistinctColor(fallbackColor, brickType);
+    }
+
+    private Color GetRandomDistinctColor(Color avoidColor, BrickType avoidType = BrickType.Undefined)
+    {
+        List<Color> availableColors = GetPrefabColorsExcluding(avoidColor, avoidType);
+        if (availableColors.Count > 0)
+        {
+            int index = UnityEngine.Random.Range(0, availableColors.Count);
+            return availableColors[index];
+        }
+
+        // No alternate prefab colors found; fall back to the original color
+        return avoidColor;
+    }
+
+    private List<Color> GetPrefabColorsExcluding(Color avoidColor, BrickType avoidType)
+    {
+        List<Color> colors = new List<Color>();
+        if (BrickPrefabs.I == null || BrickPrefabs.I.Prefabs == null) return colors;
+
+        for (int i = 0; i < BrickPrefabs.I.Prefabs.Count; i++)
+        {
+            if (i == 0) continue; // Skip index 0 per project convention
+            var prefab = BrickPrefabs.I.Prefabs[i];
+            if (prefab == null) continue;
+            var brick = prefab.GetComponent<BrickScript>();
+            if (brick == null) continue;
+            if (brick.Type == BrickType.Undefined || brick.Type == avoidType) continue;
+
+            Color color = brick.Color;
+            if (ColorsApproximatelyEqual(color, avoidColor)) continue;
+
+            if (!colors.Contains(color))
+            {
+                colors.Add(color);
+            }
+        }
+
+        return colors;
+    }
+
+    private bool ColorsApproximatelyEqual(Color a, Color b)
+    {
+        const float tolerance = 0.01f;
+        return Mathf.Abs(a.r - b.r) < tolerance &&
+               Mathf.Abs(a.g - b.g) < tolerance &&
+               Mathf.Abs(a.b - b.b) < tolerance;
     }
 
     private void HandleBoardReset()
