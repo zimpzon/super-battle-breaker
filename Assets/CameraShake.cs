@@ -13,6 +13,6 @@ public class CameraShake : MonoBehaviour
     public void Shake()
     {
         transform.DOKill();
-        transform.DOShakePosition(0.1f, 0.1f);
+        transform.DOShakePosition(0.3f, 0.2f);
     }
 }

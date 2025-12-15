@@ -24,6 +24,7 @@ public class GameScript : MonoBehaviour
 
     public TMP_Text TextGameOver;
     public TMP_Text TextScore;
+    public GameObject SkinsPanel;
 
     [Header("Sound Effects")]
     public AudioSource audioSourceMusic;
@@ -55,6 +56,8 @@ public class GameScript : MonoBehaviour
         }
 
         TextGameOver.enabled = true;
+        SkinsPanel.SetActive(true);
+
         Time.timeScale = 0.00001f;
         isPlaying = false;
 
@@ -64,8 +67,6 @@ public class GameScript : MonoBehaviour
             sb.AppendLine("<size=-5><color=yellow>New best score!</color>");
 
         sb.AppendLine("<size=-10>PRESS SPACE TO BEGIN");
-        sb.AppendLine();
-        sb.AppendLine("<size=-25>Write your best score in the comments!");
 
         TextGameOver.text = sb.ToString();
 
@@ -78,7 +79,8 @@ public class GameScript : MonoBehaviour
     void ShowInitialStartScreen()
     {
         TextGameOver.enabled = true;
-        TextGameOver.text = "<size=-10>PRESS SPACE TO BEGIN\n\n<size=-25>Write your best score in the comments!";
+        SkinsPanel.SetActive(true);
+        TextGameOver.text = "<size=-10>PRESS SPACE TO BEGIN";
         Time.timeScale = 0.00001f; // Keep normal time scale for input detection
     }
 
@@ -132,6 +134,7 @@ public class GameScript : MonoBehaviour
 
         // Show initial start screen
         ShowInitialStartScreen();
+        UpdateScoreText();
     }
 
     void Update()
@@ -169,6 +172,7 @@ public class GameScript : MonoBehaviour
         IsFirstStart = false;
         isPlaying = true;
         TextGameOver.enabled = false;
+        SkinsPanel.SetActive(false);
         Time.timeScale = 1f;
 
         // Reset score
@@ -193,6 +197,7 @@ public class GameScript : MonoBehaviour
         ClearAll();
         isPlaying = true;
         TextGameOver.enabled = false;
+        SkinsPanel.SetActive(false);
         Time.timeScale = 1f;
 
         // Reset score
