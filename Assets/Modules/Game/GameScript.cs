@@ -305,6 +305,18 @@ public class GameScript : MonoBehaviour
         float groupSpacing = 0.1f; // Distance between match groups
         basePosition.x += groupIndex * groupSpacing;
 
+        BrickType bonusType = BrickType.Undefined;
+        Color bonusColor = representativeBrick.Color;
+        if (is4PlusMatch)
+        {
+            bonusType = GetRandomAlternateBrickType(representativeBrick.Type);
+            bonusColor = GetColorForBrickType(bonusType, representativeBrick.Color);
+            if (bonusType == representativeBrick.Type || ColorsApproximatelyEqual(bonusColor, representativeBrick.Color))
+            {
+                bonusColor = GetRandomDistinctColor(representativeBrick.Color, representativeBrick.Type);
+            }
+        }
+
         foreach (var pos in positions)
         {
             // Calculate offset from pattern center
@@ -319,13 +331,7 @@ public class GameScript : MonoBehaviour
             if (is4PlusMatch)
             {
                 // Spawn random colored balls from other prefabs (not the matched color)
-                BrickType randomType = GetRandomAlternateBrickType(representativeBrick.Type);
-                Color randomColor = GetColorForBrickType(randomType, representativeBrick.Color);
-                if (randomType == representativeBrick.Type || ColorsApproximatelyEqual(randomColor, representativeBrick.Color))
-                {
-                    randomColor = GetRandomDistinctColor(representativeBrick.Color, representativeBrick.Type);
-                }
-                SpawnBallSet(spawnPos, 1, randomType, randomColor, 0.2f);
+                SpawnBallSet(spawnPos, 1, bonusType, bonusColor, 0.2f);
             }
         }
     }
